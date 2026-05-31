@@ -1,6 +1,11 @@
 # Screenshots
 screenshot*.png
 
+# PyInstaller build outputs
+build/
+dist/
+*.spec
+
 # Python
 __pycache__/
 *.pyc

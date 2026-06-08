@@ -41,3 +41,5 @@ jobs:
           generate_release_notes: true
           files: |
             dist/MessageFlight.exe
+            https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.ref_name }}.zip
+            https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.ref_name }}.tar.gz

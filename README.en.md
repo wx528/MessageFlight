@@ -20,11 +20,19 @@ Let Windows notifications fly across your screen like a little plane 🎈
 
 ## Quick Start
 
+Requires Windows 10/11 and Python 3.8+.
+
 ```bash
 git clone https://github.com/wx528/MessageFlight.git
 cd MessageFlight
+
+python -m venv .venv
+.venv\Scripts\activate
+
 pip install -r requirements.txt
 python message_flight.py
 ```
+
+Run `deactivate` to leave the virtual environment when you're done.
 
 [MIT License](LICENSE)

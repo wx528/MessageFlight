@@ -20,11 +20,19 @@
 
 ## 快速开始
 
+要求 Windows 10/11 + Python 3.8+。
+
 ```bash
 git clone https://github.com/wx528/MessageFlight.git
 cd MessageFlight
+
+python -m venv .venv
+.venv\Scripts\activate
+
 pip install -r requirements.txt
 python message_flight.py
 ```
+
+不需要时可执行 `deactivate` 退出虚拟环境。
 
 [MIT License](LICENSE)

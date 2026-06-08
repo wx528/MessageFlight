@@ -22,6 +22,8 @@ Let Windows notifications fly across your screen like a little plane 🎈
 
 Requires Windows 10/11 and Python 3.8+.
 
+Using `pip`:
+
 ```bash
 git clone https://github.com/wx528/MessageFlight.git
 cd MessageFlight
@@ -34,5 +36,16 @@ python message_flight.py
 ```
 
 Run `deactivate` to leave the virtual environment when you're done.
+
+Using [`uv`](https://docs.astral.sh/uv/) (faster):
+
+```bash
+git clone https://github.com/wx528/MessageFlight.git
+cd MessageFlight
+
+uv venv
+uv pip install -r requirements.txt
+uv run python message_flight.py
+```
 
 [MIT License](LICENSE)

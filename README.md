@@ -22,6 +22,8 @@
 
 要求 Windows 10/11 + Python 3.8+。
 
+使用 `pip`：
+
 ```bash
 git clone https://github.com/wx528/MessageFlight.git
 cd MessageFlight
@@ -34,5 +36,16 @@ python message_flight.py
 ```
 
 不需要时可执行 `deactivate` 退出虚拟环境。
+
+使用 [`uv`](https://docs.astral.sh/uv/)（更快）：
+
+```bash
+git clone https://github.com/wx528/MessageFlight.git
+cd MessageFlight
+
+uv venv
+uv pip install -r requirements.txt
+uv run python message_flight.py
+```
 
 [MIT License](LICENSE)

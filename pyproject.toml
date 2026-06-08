@@ -16,3 +16,6 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/wx528/MessageFlight"
 Issues = "https://github.com/wx528/MessageFlight/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]

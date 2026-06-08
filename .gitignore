@@ -29,3 +29,7 @@ Desktop.ini
 
 # Logs
 *.log
+
+# tasks
+docs/tasks/*.*
+!docs/tasks/.gitkeep

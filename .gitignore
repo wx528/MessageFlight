@@ -38,3 +38,6 @@ docs/tasks/*.*
 docs/superpowers/**/*.md
 !docs/superpowers/.gitkeep
 !docs/superpowers/**/.gitkeep
+
+# git worktrees
+.worktrees/

@@ -2,10 +2,19 @@
 
 a = Analysis(
     ['message_flight.py'],
-    pathex=[],
+    pathex=['.'],
     binaries=[],
     datas=[],
-    hiddenimports=['winsdk'],
+    hiddenimports=[
+        'winsdk',
+        'message_flight',
+        'message_flight.autostart',
+        'message_flight.demo_notifications',
+        'message_flight.notification_worker',
+        'message_flight.plane_banner',
+        'message_flight.flight_widget',
+        'message_flight.tray_app',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

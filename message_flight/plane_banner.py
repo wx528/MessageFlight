@@ -40,6 +40,7 @@ class PlaneBanner(QWidget):
 
         painter.save()
         painter.translate(self._banner_width + 10, 15 + float_y)
+        # z-order: thruster (back) → fuselage (middle) → wings (front)
         self._draw_thruster(painter)
         self._draw_fuselage(painter)
         self._draw_wings(painter)
@@ -80,6 +81,7 @@ class PlaneBanner(QWidget):
         painter.end()
 
     def _draw_fuselage(self, painter: QPainter):
+        """Draw fuselage body, nose, white dots, and pink decor."""
         c = self._plane_color
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(c)
@@ -97,6 +99,7 @@ class PlaneBanner(QWidget):
         painter.drawEllipse(56, 33, 12, 3)
 
     def _draw_wings(self, painter: QPainter):
+        """Draw top wing and tail fin."""
         wing_color = QColor("#FF1493")
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(wing_color)
@@ -116,14 +119,27 @@ class PlaneBanner(QWidget):
         painter.drawPath(tail_path)
 
     def _draw_thruster(self, painter: QPainter, intensity: float = 1.0):
+        """Draw the thruster flame at the plane's tail.
+
+        Args:
+            painter: QPainter instance.
+            intensity: Flame width multiplier (0.5-1.5), default 1.0.
+                Scales ellipse widths; height stays fixed.
+        """
         painter.setPen(Qt.PenStyle.NoPen)
+
+        # 三层 y 错落（25/26/27）让火焰视觉上更自然
         outer_w = int(14 * intensity)
         painter.setBrush(QColor("#FFA500"))
         painter.drawEllipse(5, 25, outer_w, 10)
+
+        mid_w = int(10 * intensity)
         painter.setBrush(QColor("#FF4500"))
-        painter.drawEllipse(5, 25, int(10 * intensity), 7)
+        painter.drawEllipse(5, 26, mid_w, 7)
+
+        inner_w = int(5 * intensity)
         painter.setBrush(QColor("#FFFF00"))
-        painter.drawEllipse(5, 25, int(5 * intensity), 4)
+        painter.drawEllipse(5, 27, inner_w, 4)
 
     def _draw_plane(self, painter: QPainter):
         self._draw_thruster(painter)

@@ -40,6 +40,7 @@ class PlaneBanner(QWidget):
 
         painter.save()
         painter.translate(self._banner_width + 10, 15 + float_y)
+        self._draw_thruster(painter)
         self._draw_fuselage(painter)
         self._draw_wings(painter)
         painter.restore()
@@ -114,6 +115,17 @@ class PlaneBanner(QWidget):
         tail_path.closeSubpath()
         painter.drawPath(tail_path)
 
+    def _draw_thruster(self, painter: QPainter, intensity: float = 1.0):
+        painter.setPen(Qt.PenStyle.NoPen)
+        outer_w = int(14 * intensity)
+        painter.setBrush(QColor("#FFA500"))
+        painter.drawEllipse(5, 25, outer_w, 10)
+        painter.setBrush(QColor("#FF4500"))
+        painter.drawEllipse(5, 25, int(10 * intensity), 7)
+        painter.setBrush(QColor("#FFFF00"))
+        painter.drawEllipse(5, 25, int(5 * intensity), 4)
+
     def _draw_plane(self, painter: QPainter):
+        self._draw_thruster(painter)
         self._draw_fuselage(painter)
         self._draw_wings(painter)

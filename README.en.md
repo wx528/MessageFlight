@@ -31,7 +31,7 @@ cd MessageFlight
 python -m venv .venv
 .venv\Scripts\activate
 
-pip install -r requirements.txt
+pip install .
 python message_flight.py
 ```
 
@@ -43,8 +43,7 @@ Using [`uv`](https://docs.astral.sh/uv/) (faster):
 git clone https://github.com/wx528/MessageFlight.git
 cd MessageFlight
 
-uv venv
-uv pip install -r requirements.txt
+uv sync
 uv run python message_flight.py
 ```
 

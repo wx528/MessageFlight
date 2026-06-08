@@ -40,7 +40,8 @@ class PlaneBanner(QWidget):
 
         painter.save()
         painter.translate(self._banner_width + 10, 15 + float_y)
-        self._draw_plane(painter)
+        self._draw_fuselage(painter)
+        self._draw_wings(painter)
         painter.restore()
 
         banner_y = 20 + float_y
@@ -77,14 +78,26 @@ class PlaneBanner(QWidget):
         painter.drawText(20, text_y, self._text)
         painter.end()
 
-    def _draw_plane(self, painter: QPainter):
+    def _draw_fuselage(self, painter: QPainter):
         c = self._plane_color
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(c)
         painter.drawEllipse(10, 18, 45, 22)
         painter.drawEllipse(48, 19, 14, 20)
 
+        painter.setBrush(QColor("#FFFFFF"))
+        painter.drawEllipse(52, 24, 6, 6)
+        painter.drawEllipse(38, 24, 5, 5)
+
+        painter.setBrush(QColor("#FF69B4"))
+        painter.drawEllipse(60, 26, 4, 6)
+        painter.setBrush(QColor("#FFB6C1"))
+        painter.drawEllipse(56, 22, 12, 3)
+        painter.drawEllipse(56, 33, 12, 3)
+
+    def _draw_wings(self, painter: QPainter):
         wing_color = QColor("#FF1493")
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(wing_color)
         wing_path = QPainterPath()
         wing_path.moveTo(25, 25)
@@ -101,12 +114,6 @@ class PlaneBanner(QWidget):
         tail_path.closeSubpath()
         painter.drawPath(tail_path)
 
-        painter.setBrush(QColor("#FFFFFF"))
-        painter.drawEllipse(52, 24, 6, 6)
-        painter.drawEllipse(38, 24, 5, 5)
-
-        painter.setBrush(QColor("#FF69B4"))
-        painter.drawEllipse(60, 26, 4, 6)
-        painter.setBrush(QColor("#FFB6C1"))
-        painter.drawEllipse(56, 22, 12, 3)
-        painter.drawEllipse(56, 33, 12, 3)
+    def _draw_plane(self, painter: QPainter):
+        self._draw_fuselage(painter)
+        self._draw_wings(painter)

@@ -1,0 +1,18 @@
+[project]
+name = "messageflight"
+version = "0.1.0"
+description = "Let Windows notifications fly across your screen like a little plane."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "MessageFlight Contributors" }
+]
+dependencies = [
+    "PyQt6>=6.5.0",
+    "winsdk>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/wx528/MessageFlight"
+Issues = "https://github.com/wx528/MessageFlight/issues"

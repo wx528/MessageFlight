@@ -1,3 +1,0 @@
-PyQt6>=6.5.0
-winsdk>=1.0.0
-asyncio; python_version >= "3.4"

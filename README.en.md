@@ -1,5 +1,7 @@
 # MessageFlight ✈️
 
+[![CI](https://github.com/wx528/MessageFlight/actions/workflows/ci.yml/badge.svg)](https://github.com/wx528/MessageFlight/actions/workflows/ci.yml)
+
 [中文](README.md)
 
 Let Windows notifications fly across your screen like a little plane 🎈

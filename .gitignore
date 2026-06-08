@@ -1,16 +1,18 @@
-# Screenshots
-screenshot*.png
-
-# PyInstaller build outputs
-build/
-dist/
-*.spec
-
 # Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
 *.egg-info/
+dist/
+build/
+*.egg
+
+# PyQt
+*.qm
+
+# Project specific
+publish/
 dist/
 build/
 
@@ -18,6 +20,12 @@ build/
 .vscode/
 .idea/
 *.swp
+*.swo
 
-# Distribution
-publish/
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+*.log

@@ -12,6 +12,7 @@ from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
 from message_flight.notification_worker import NotificationWorker, WINSOK_AVAILABLE
 from message_flight.settings_dialog import SettingsDialog
+from message_flight.tts import SAPIReader
 
 
 class TrayApplication:
@@ -26,6 +27,11 @@ class TrayApplication:
         cfg = load_config()
         self.widget = FlightWidget(plane_colors=cfg.colors, **cfg.flight_kwargs)
         self.widget.show()
+
+        self.tts = SAPIReader(
+            enabled=True,
+            title_template="您有新消息了。{message}",
+        )
 
         # 系统托盘
         self.tray_icon = QSystemTrayIcon(self._create_tray_icon(), self.app)
@@ -49,6 +55,11 @@ class TrayApplication:
         self.action_settings = QAction("设置...", self.menu)
         self.action_settings.triggered.connect(self._open_settings)
         self.menu.addAction(self.action_settings)
+
+        self.action_online_tts = QAction("在线 TTS (未实现)", self.menu)
+        self.action_online_tts.setEnabled(False)
+        self.action_online_tts.setToolTip("v0.1.9 将支持 MiniMax / MeloTTS 等在线 TTS 引擎")
+        self.menu.addAction(self.action_online_tts)
 
         self.menu.addSeparator()
 
@@ -149,6 +160,7 @@ class TrayApplication:
         if len(display) > 80:
             display = display[:77] + "..."
         print(f"[Real Notification] {display}")
+        self.tts.speak(display)
         self.widget.show_notification(display)
         self._show_widget()
 

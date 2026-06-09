@@ -1,4 +1,5 @@
 """System tray icon, context menu, and application lifecycle."""
+import logging
 import random
 import sys
 
@@ -13,6 +14,8 @@ from message_flight.flight_widget import FlightWidget
 from message_flight.notification_worker import NotificationWorker, WINSOK_AVAILABLE
 from message_flight.settings_dialog import SettingsDialog
 from message_flight.tts_manager import TTSManager
+
+logger = logging.getLogger(__name__)
 
 
 class TrayApplication:
@@ -151,7 +154,7 @@ class TrayApplication:
         # 截断过长的文本
         if len(display) > 80:
             display = display[:77] + "..."
-        print(f"[Real Notification] {display}")
+        logger.info("[Real Notification] %s", display)
         self.tts.speak(display)
         self.widget.show_notification(display)
         self._show_widget()

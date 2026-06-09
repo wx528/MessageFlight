@@ -28,11 +28,7 @@ def isolated_settings(monkeypatch, tmp_path):
     """Point QSettings at a temp INI file for the duration of one test."""
     ini_dir = tmp_path / "qsettings"
     ini_dir.mkdir()
-    QSettings.setPath(
-        QSettings.Format.IniFormat,
-        QSettings.Scope.UserScope,
-        str(ini_dir),
-    )
+    monkeypatch.setenv("MESSAGEFLIGHT_CONFIG_DIR", str(ini_dir))
     # Clear any previously set values for our org/app combination
     settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, ORG, APP)
     settings.clear()

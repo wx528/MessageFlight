@@ -181,7 +181,14 @@ class AppConfig:
 
 
 def _new_settings() -> QSettings:
-    """Build a QSettings instance using IniFormat for cross-platform storage."""
+    """Build a QSettings instance using IniFormat stored in ~/.config/messageflight."""
+    import os
+    from pathlib import Path
+    config_dir = os.environ.get("MESSAGEFLIGHT_CONFIG_DIR")
+    if config_dir is None:
+        config_dir = str(Path.home() / ".config" / "messageflight")
+    Path(config_dir).mkdir(parents=True, exist_ok=True)
+    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_dir)
     return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, ORG, APP)
 
 

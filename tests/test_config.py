@@ -115,10 +115,9 @@ def test_flight_modes_have_three_entries():
     assert len(FLIGHT_MODES) == 3
     # The user-facing order tuple must list the 3 names in display order
     assert FLIGHT_MODE_NAMES == ("低调", "标准", "胡闹")
-    # Each mode must have a non-empty colors dict and a non-empty flight_kwargs dict
+    # Each mode must be a plain dict of flight_kwargs
     for name, mode in FLIGHT_MODES.items():
-        assert isinstance(mode.colors, dict) and len(mode.colors) == 9, name
-        assert isinstance(mode.flight_kwargs, dict) and len(mode.flight_kwargs) >= 1, name
+        assert isinstance(mode, dict) and len(mode) >= 1, name
 
 
 def test_save_load_flight_kwargs_round_trip(isolated_settings):
@@ -129,12 +128,12 @@ def test_save_load_flight_kwargs_round_trip(isolated_settings):
     (not the original preset default). We also inspect the raw QSettings
     string to confirm it is real JSON, not a Python repr().
     """
-    cyber = FLIGHT_MODES["胡闹"]
+    cyber_kwargs = dict(FLIGHT_MODES["胡闹"])
     cfg = AppConfig(
-        theme_name=cyber.theme_name,
-        colors=dict(cyber.colors),
+        theme_name="cyber",
+        colors=dict(THEMES["cyber"]),
         flight_mode="胡闹",
-        flight_kwargs=dict(cyber.flight_kwargs),
+        flight_kwargs=dict(cyber_kwargs),
     )
     # Mutate one int and one bool to prove values are actually serialized,
     # not just round-tripped by reference

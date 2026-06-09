@@ -88,7 +88,7 @@ def test_get_result_after_ok_returns_new_config(qapp):
 
 
 def test_click_flight_mode_button_updates_internal_state(qapp):
-    """Clicking the '胡闹' flight-mode button must update _current_flight_mode + _current_flight_kwargs + 9 QLineEdits."""
+    """Clicking the '胡闹' flight-mode button must update _current_flight_mode + _current_flight_kwargs (but NOT colors)."""
     cfg = AppConfig(theme_name=DEFAULT_THEME, colors=dict(THEMES[DEFAULT_THEME]))
     dlg = SettingsDialog(cfg)
     # Sanity: the dialog exposes exactly 3 flight-mode buttons, one per mode name
@@ -98,18 +98,23 @@ def test_click_flight_mode_button_updates_internal_state(qapp):
     assert isinstance(btn, QPushButton)
     btn.click()
 
-    cyber = FLIGHT_MODES["胡闹"]
+    cyber_kwargs = FLIGHT_MODES["胡闹"]
     # 1. Internal flight mode + kwargs must reflect the click
     assert dlg._current_flight_mode == "胡闹"
     assert dlg._current_flight_kwargs["fly_bounce"] is True
     assert dlg._current_flight_kwargs["fly_loop_count"] == -1
-    # 2. All 9 color QLineEdits must now show the cyber theme's hex values
-    for key, expected in cyber.colors.items():
-        actual = dlg._line_edits[key].text()
-        assert actual == expected, f"{key}: expected {expected!r}, got {actual!r}"
-    # 3. The dialog must NOT have closed
+    # 2. The dialog must NOT have closed
     assert dlg.result() != QDialog.DialogCode.Accepted
-    # 4. get_result() must surface the new flight mode + kwargs
+    # 3. get_result() must surface the new flight mode + kwargs
     result = dlg.get_result()
     assert result.flight_mode == "胡闹"
-    assert result.flight_kwargs == cyber.flight_kwargs
+    assert result.flight_kwargs == cyber_kwargs
+
+
+def test_flight_mode_does_not_change_colors(qapp):
+    """Clicking a flight-mode button must NOT alter the 9 color QLineEdits."""
+    cfg = AppConfig(theme_name=DEFAULT_THEME, colors=dict(THEMES[DEFAULT_THEME]))
+    dlg = SettingsDialog(cfg)
+    initial_plane_color = dlg._line_edits["plane_color"].text()
+    dlg._flight_mode_buttons["胡闹"].click()
+    assert dlg._line_edits["plane_color"].text() == initial_plane_color

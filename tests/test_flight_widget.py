@@ -181,19 +181,29 @@ def test_flight_widget_accepts_all_flight_mode_kwargs(qapp):
     without crashing and that key instance attributes are populated.
     """
     for name in FLIGHT_MODE_NAMES:
-        mode = FLIGHT_MODES[name]
-        widget = _make_widget(qapp, plane_colors=mode.colors, **mode.flight_kwargs)
+        kwargs = FLIGHT_MODES[name]
+        widget = _make_widget(qapp, **kwargs)
         # Spot-check the 7 attributes the presets actually use
-        assert widget._fly_bounce == mode.flight_kwargs["fly_bounce"], name
-        assert widget._fly_loop_count == mode.flight_kwargs["fly_loop_count"], name
-        assert widget._fly_path == mode.flight_kwargs["fly_path"], name
-        assert widget._fly_duration_ms == mode.flight_kwargs["fly_duration_ms"], name
-        assert widget._float_duration_ms == mode.flight_kwargs["float_duration_ms"], name
-        assert widget._vertical_jitter == mode.flight_kwargs["vertical_jitter"], name
-        assert widget._notification_interval_ms == mode.flight_kwargs["notification_interval_ms"], name
-        # The widget's PlaneBanner must have received the mode's palette
-        assert widget.plane._plane_color.name().lower() == mode.colors["plane_color"].lower(), name
+        assert widget._fly_bounce == kwargs["fly_bounce"], name
+        assert widget._fly_loop_count == kwargs["fly_loop_count"], name
+        assert widget._fly_path == kwargs["fly_path"], name
+        assert widget._fly_duration_ms == kwargs["fly_duration_ms"], name
+        assert widget._float_duration_ms == kwargs["float_duration_ms"], name
+        assert widget._vertical_jitter == kwargs["vertical_jitter"], name
+        assert widget._notification_interval_ms == kwargs["notification_interval_ms"], name
         del widget
+
+
+def test_vertical_pong_path_is_valid(qapp):
+    """fly_path='vertical_pong' must be accepted without raising."""
+    widget = _make_widget(qapp, fly_path="vertical_pong")
+    assert widget._fly_path == "vertical_pong"
+
+
+def test_re_flight_x_ratio_default(qapp):
+    """Default re_flight_x_ratio must be 0.5."""
+    widget = _make_widget(qapp)
+    assert widget._re_flight_x_ratio == 0.5
 
 
 def test_set_flight_kwargs_hot_updates_without_crash(qapp):

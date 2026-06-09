@@ -5,20 +5,33 @@ from PyQt6.QtWidgets import QWidget
 
 
 class PlaneBanner(QWidget):
-    def __init__(self, parent=None):
+    def __init__(
+        self,
+        parent=None,
+        *,
+        plane_color: str = "#FF69B4",
+        wing_color: str = "#FF1493",
+        accent_color: str = "#FFFFFF",
+        decor_color: str = "#FF69B4",
+        banner_color: str = "#FFB6C1",
+        text_color: str = "#FFFFFF",
+        thruster_outer_color: str = "#FFA500",
+        thruster_middle_color: str = "#FF4500",
+        thruster_inner_color: str = "#FFFF00",
+    ):
         super().__init__(parent)
         self._banner_width = 280
         self._banner_height = 50
         self._text = ""
-        self._plane_color = QColor("#FF69B4")
-        self._wing_color = QColor("#FF1493")
-        self._accent_color = QColor("#FFFFFF")
-        self._decor_color = QColor("#FF69B4")
-        self._banner_color = QColor("#FFB6C1")
-        self._text_color = QColor("#FFFFFF")
-        self._thruster_outer_color = QColor("#FFA500")
-        self._thruster_middle_color = QColor("#FF4500")
-        self._thruster_inner_color = QColor("#FFFF00")
+        self._plane_color = QColor(plane_color)
+        self._wing_color = QColor(wing_color)
+        self._accent_color = QColor(accent_color)
+        self._decor_color = QColor(decor_color)
+        self._banner_color = QColor(banner_color)
+        self._text_color = QColor(text_color)
+        self._thruster_outer_color = QColor(thruster_outer_color)
+        self._thruster_middle_color = QColor(thruster_middle_color)
+        self._thruster_inner_color = QColor(thruster_inner_color)
         self._plane_offset = 0.0
         self.setFixedSize(self._banner_width + 80, 80)
 

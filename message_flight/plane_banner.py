@@ -52,6 +52,43 @@ class PlaneBanner(QWidget):
 
     plane_offset = pyqtProperty(float, get_plane_offset, set_plane_offset)
 
+    def update_colors(
+        self,
+        *,
+        plane_color: str | None = None,
+        wing_color: str | None = None,
+        accent_color: str | None = None,
+        decor_color: str | None = None,
+        banner_color: str | None = None,
+        text_color: str | None = None,
+        thruster_outer_color: str | None = None,
+        thruster_middle_color: str | None = None,
+        thruster_inner_color: str | None = None,
+    ) -> None:
+        """Replace any of the 9 color attributes and request a repaint.
+
+        All arguments are keyword-only to match the ``__init__`` style.
+        A ``None`` argument leaves the corresponding color unchanged, which
+        lets callers forward ``**cfg.colors`` without worrying about missing
+        keys. A single ``update()`` is issued at the end so the repaint is
+        coalesced.
+        """
+        mapping = {
+            "plane_color": ("_plane_color", plane_color),
+            "wing_color": ("_wing_color", wing_color),
+            "accent_color": ("_accent_color", accent_color),
+            "decor_color": ("_decor_color", decor_color),
+            "banner_color": ("_banner_color", banner_color),
+            "text_color": ("_text_color", text_color),
+            "thruster_outer_color": ("_thruster_outer_color", thruster_outer_color),
+            "thruster_middle_color": ("_thruster_middle_color", thruster_middle_color),
+            "thruster_inner_color": ("_thruster_inner_color", thruster_inner_color),
+        }
+        for attr, value in mapping.values():
+            if value is not None:
+                setattr(self, attr, QColor(value))
+        self.update()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

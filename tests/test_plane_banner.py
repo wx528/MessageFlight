@@ -115,3 +115,40 @@ def test_all_color_attributes_initialized():
         assert isinstance(value, QColor), f"{attr} is not a QColor"
         assert value.isValid(), f"{attr} is not a valid color"
 
+
+# ---------------------------------------------------------------------------
+# Task 05: live color update API
+# ---------------------------------------------------------------------------
+
+
+def test_update_colors_replaces_all_nine_attributes():
+    """update_colors() must replace all 9 _xxx_color attributes and trigger repaint."""
+    with patch("PyQt6.QtWidgets.QWidget.__init__"), \
+         patch.object(PlaneBanner, "setFixedSize"):
+        banner = PlaneBanner()
+    # Replace the inherited C++ update() with a MagicMock so it can be called
+    # without a real Qt event loop, and so we can assert it was invoked.
+    banner.update = MagicMock()
+    banner.update_colors(
+        plane_color="#111111",
+        wing_color="#222222",
+        accent_color="#333333",
+        decor_color="#444444",
+        banner_color="#555555",
+        text_color="#666666",
+        thruster_outer_color="#777777",
+        thruster_middle_color="#888888",
+        thruster_inner_color="#999999",
+    )
+    assert banner._plane_color.name().lower() == "#111111"
+    assert banner._wing_color.name().lower() == "#222222"
+    assert banner._accent_color.name().lower() == "#333333"
+    assert banner._decor_color.name().lower() == "#444444"
+    assert banner._banner_color.name().lower() == "#555555"
+    assert banner._text_color.name().lower() == "#666666"
+    assert banner._thruster_outer_color.name().lower() == "#777777"
+    assert banner._thruster_middle_color.name().lower() == "#888888"
+    assert banner._thruster_inner_color.name().lower() == "#999999"
+    # Repaint should be requested exactly once (coalesced).
+    banner.update.assert_called_once()
+

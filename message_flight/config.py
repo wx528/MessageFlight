@@ -23,6 +23,7 @@ SETTINGS_KEY = "color_scheme"
 FLIGHT_KWARG_KEY = "flight_kwargs_json"
 FLIGHT_MODE_KEY = "flight_mode"
 ONLINE_TTS_API_KEY = "online_tts_api_key"
+MINIMAX_API_KEY = "minimax_api_key"
 
 DEFAULT_ONLINE_TTS_API_KEY = ""
 TTS_PROVIDER_KEY = "tts_provider"
@@ -230,7 +231,7 @@ def load_config() -> AppConfig:
         tts_provider = str(settings.value(TTS_PROVIDER_KEY, DEFAULT_TTS_PROVIDER))
         if tts_provider not in VALID_TTS_PROVIDERS:
             tts_provider = DEFAULT_TTS_PROVIDER
-        minimax_api_key = str(settings.value(ONLINE_TTS_API_KEY, DEFAULT_ONLINE_TTS_API_KEY))
+        minimax_api_key = str(settings.value(MINIMAX_API_KEY, DEFAULT_ONLINE_TTS_API_KEY))
     except Exception as e:
         print(f"load_config: failed to read keys ({e!r}); using defaults", file=sys.stderr)
         return _default_config()
@@ -271,7 +272,7 @@ def save_config(cfg: AppConfig) -> None:
             settings.setValue(FLIGHT_KWARG_KEY, json.dumps(flight_kwargs_to_save))
             settings.setValue(ONLINE_TTS_API_KEY, cfg.online_tts_api_key)
             settings.setValue(TTS_PROVIDER_KEY, cfg.tts_provider)
-            settings.setValue(ONLINE_TTS_API_KEY, cfg.minimax_api_key)
+            settings.setValue(MINIMAX_API_KEY, cfg.minimax_api_key)
             settings.sync()
         finally:
             del settings

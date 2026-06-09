@@ -12,6 +12,7 @@ dependencies = [
     "PyQt6>=6.5.0",
     "winsdk>=1.0.0b10",
     "pywin32>=227; sys_platform == 'win32'",
+    "pygame>=2.5.0",
 ]
 
 [project.urls]

@@ -2,7 +2,7 @@
 
 Provides ``TTSReader`` abstract base class and two concrete implementations:
 - ``SAPIReader``  – Windows SAPI via pywin32 (falls back to no-op if unavailable)
-- ``MiniMaxReader`` – MiniMax online TTS engine via Qt async network + media player
+- ``MiniMaxReader`` – MiniMax online TTS engine via Qt async network + pygame audio
 """
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ import sys
 import tempfile
 
 from PyQt6.QtCore import QByteArray, QObject, QUrl, pyqtSignal
-from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 logger = logging.getLogger(__name__)
@@ -83,7 +82,7 @@ class SAPIReader(TTSReader):
 
 
 class MiniMaxReader(TTSReader, QObject):
-    """MiniMax TTS via QNetworkAccessManager + QMediaPlayer.
+    """MiniMax TTS via QNetworkAccessManager + pygame.mixer.
 
     Asynchronously calls the MiniMax API and plays the returned MP3.
     On any error, emits ``error_occurred`` so TTSManager can fall back
@@ -113,21 +112,11 @@ class MiniMaxReader(TTSReader, QObject):
         self._speed = speed
         self._vol = vol
         self._network = QNetworkAccessManager()
-        self._player = QMediaPlayer()
-        self._audio_output = QAudioOutput()
-        self._player.setAudioOutput(self._audio_output)
-        self._audio_output.setVolume(1.0)
         self._buffer = None  # type: QByteArray | None
+        self._current_audio_path = None  # type: str | None
 
         self._network.finished.connect(self._on_reply_finished)
-        self._player.playbackStateChanged.connect(self._on_state_changed)
-        self._player.errorOccurred.connect(self._on_player_error)
         logger.info("MiniMaxReader: initialized with voice_id=%s", voice_id)
-
-    def _on_player_error(self, error, error_string):
-        """Handle QMediaPlayer errors."""
-        logger.error("MiniMaxReader QMediaPlayer error: %s (code=%s)", error_string, error)
-        self.error_occurred.emit(f"Media player error: {error_string}")
 
     def _speak_impl(self, text: str) -> None:
         if not self._api_key:
@@ -224,28 +213,68 @@ class MiniMaxReader(TTSReader, QObject):
             os.write(fd, self._buffer.data())
         finally:
             os.close(fd)
+        
         logger.info("MiniMaxReader._on_reply_finished: saved audio to %s (%d bytes)", path, len(audio_bytes))
         
-        # Debug: verify file exists and has content
-        if os.path.exists(path):
-            file_size = os.path.getsize(path)
-            logger.info("MiniMaxReader._on_reply_finished: file exists, size=%d bytes", file_size)
-        else:
-            logger.error("MiniMaxReader._on_reply_finished: file does not exist!")
+        # Clean up previous audio file if exists
+        if self._current_audio_path and os.path.exists(self._current_audio_path):
+            try:
+                os.remove(self._current_audio_path)
+            except OSError:
+                pass
+        self._current_audio_path = path
         
-        self._player.setSource(QUrl.fromLocalFile(path))
-        logger.info("MiniMaxReader._on_reply_finished: media source set, calling play()")
-        self._player.play()
+        # Use pygame.mixer to play audio (reliable cross-platform MP3 playback)
+        self._play_audio_with_pygame(path)
         reply.deleteLater()
 
-    def _on_state_changed(self, state) -> None:
-        from PyQt6.QtMultimedia import QMediaPlayer as _QMP
-        if state == _QMP.PlaybackState.StoppedState:
-            logger.debug("MiniMaxReader._on_state_changed: playback stopped")
-            self.playback_finished.emit()
-            source = self._player.source()
-            if source.isLocalFile():
-                try:
-                    os.remove(source.toLocalFile())
-                except OSError:
-                    pass
+    def _play_audio_with_pygame(self, audio_path: str) -> None:
+        """Play audio file using pygame.mixer."""
+        try:
+            import pygame
+            
+            # Initialize pygame mixer if not already initialized
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=32000)
+                logger.info("MiniMaxReader: pygame.mixer initialized")
+            
+            # Load and play the audio
+            sound = pygame.mixer.Sound(audio_path)
+            sound.set_volume(self._vol)
+            sound.play()
+            logger.info("MiniMaxReader: playing audio from %s", audio_path)
+            
+            # Emit playback finished after a short delay (pygame doesn't have a direct callback)
+            # We use a QTimer to check if playback is done
+            from PyQt6.QtCore import QTimer
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda: self._check_playback_finished(timer))
+            timer.start(100)  # Check every 100ms
+            
+        except Exception as e:
+            logger.error("MiniMaxReader: failed to play audio with pygame: %s", e)
+            self.error_occurred.emit(f"Audio playback error: {e}")
+
+    def _check_playback_finished(self, timer: "QTimer") -> None:
+        """Check if pygame audio playback has finished."""
+        try:
+            import pygame
+            if not pygame.mixer.get_busy():
+                logger.debug("MiniMaxReader: playback finished")
+                self.playback_finished.emit()
+                timer.stop()
+                timer.deleteLater()
+                # Clean up audio file
+                if self._current_audio_path and os.path.exists(self._current_audio_path):
+                    try:
+                        os.remove(self._current_audio_path)
+                        self._current_audio_path = None
+                    except OSError:
+                        pass
+            else:
+                # Still playing, check again
+                timer.start(100)
+        except Exception:
+            timer.stop()
+            timer.deleteLater()

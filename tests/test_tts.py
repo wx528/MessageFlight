@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from message_flight.tts import OnlineTTSReader, SAPIReader, TTSReader
+from message_flight.tts import MiniMaxReader, SAPIReader, TTSReader
 
 
 def test_disabled_tts_is_noop():
@@ -41,5 +41,19 @@ def test_template_format():
     """Template formatting must insert the message into the placeholder."""
     reader = TTSReader(enabled=False, title_template="您有新消息了。{message}")
     assert "您有新消息了。hello" == reader._title_template.format(message="hello")
+
+
+def test_minimax_reader_init():
+    """MiniMaxReader should store api_key and voice_id."""
+    reader = MiniMaxReader(api_key="test-key", voice_id="female-shaonv", enabled=False)
+    assert reader._api_key == "test-key"
+    assert reader._voice_id == "female-shaonv"
+
+
+def test_minimax_reader_empty_key_emits_error(qtbot):
+    """MiniMaxReader with empty api_key must emit error_occurred."""
+    reader = MiniMaxReader(api_key="", enabled=True)
+    with qtbot.waitSignal(reader.error_occurred, timeout=1000):
+        reader.speak("test")
 
 

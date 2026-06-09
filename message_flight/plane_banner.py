@@ -11,8 +11,14 @@ class PlaneBanner(QWidget):
         self._banner_height = 50
         self._text = ""
         self._plane_color = QColor("#FF69B4")
+        self._wing_color = QColor("#FF1493")
+        self._accent_color = QColor("#FFFFFF")
+        self._decor_color = QColor("#FF69B4")
         self._banner_color = QColor("#FFB6C1")
         self._text_color = QColor("#FFFFFF")
+        self._thruster_outer_color = QColor("#FFA500")
+        self._thruster_middle_color = QColor("#FF4500")
+        self._thruster_inner_color = QColor("#FFFF00")
         self._plane_offset = 0.0
         self.setFixedSize(self._banner_width + 80, 80)
 
@@ -88,21 +94,20 @@ class PlaneBanner(QWidget):
         painter.drawEllipse(10, 18, 45, 22)
         painter.drawEllipse(48, 19, 14, 20)
 
-        painter.setBrush(QColor("#FFFFFF"))
+        painter.setBrush(self._accent_color)
         painter.drawEllipse(52, 24, 6, 6)
         painter.drawEllipse(38, 24, 5, 5)
 
-        painter.setBrush(QColor("#FF69B4"))
+        painter.setBrush(self._decor_color)
         painter.drawEllipse(60, 26, 4, 6)
-        painter.setBrush(QColor("#FFB6C1"))
+        painter.setBrush(self._banner_color)
         painter.drawEllipse(56, 22, 12, 3)
         painter.drawEllipse(56, 33, 12, 3)
 
     def _draw_wings(self, painter: QPainter):
         """Draw top wing and tail fin."""
-        wing_color = QColor("#FF1493")
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(wing_color)
+        painter.setBrush(self._wing_color)
         wing_path = QPainterPath()
         wing_path.moveTo(25, 25)
         wing_path.lineTo(15, 8)

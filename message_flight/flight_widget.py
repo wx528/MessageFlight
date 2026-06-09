@@ -8,7 +8,7 @@ from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.plane_banner import PlaneBanner
 
 
-_VALID_FLY_PATHS = ("horizontal", "zigzag_top_down", "zigzag_bottom_up", "around")
+_VALID_FLY_PATHS = ("horizontal", "vertical_pong", "zigzag_top_down", "zigzag_bottom_up", "around")
 
 
 class FlightWidget(QWidget):
@@ -22,6 +22,7 @@ class FlightWidget(QWidget):
         fly_path: str = "horizontal",
         initial_y_ratio: float = 0.25,
         re_flight_y_ratio: float = 0.2,
+        re_flight_x_ratio: float = 0.5,
         vertical_jitter: int = 100,
         re_flight_jitter: int = 120,
         re_flight_jitter_min_ratio: float = -1.0,
@@ -56,6 +57,7 @@ class FlightWidget(QWidget):
         self._fly_path = fly_path
         self._initial_y_ratio = float(initial_y_ratio)
         self._re_flight_y_ratio = float(re_flight_y_ratio)
+        self._re_flight_x_ratio = max(0.0, min(1.0, float(re_flight_x_ratio)))
         self._vertical_jitter = int(vertical_jitter)
         self._re_flight_jitter = int(re_flight_jitter)
         self._re_flight_jitter_min_ratio = float(re_flight_jitter_min_ratio)
@@ -75,6 +77,7 @@ class FlightWidget(QWidget):
         # 飞行状态
         self._fly_count = 0
         self._fly_direction = 1  # 1 = left→right, -1 = right→left
+        self._pong_direction = 1  # 1 = down, -1 = up
         self._fly_stopped = False
 
         start_y = self._compute_start_y()
@@ -105,6 +108,19 @@ class FlightWidget(QWidget):
         self.float_anim.start()
 
     def _setup_fly_animation(self):
+        if self._fly_path == "vertical_pong":
+            start_x = int(self.screen_w * self._re_flight_x_ratio) + random.randint(-100, 100)
+            start_y = -self.plane.height()
+            end_y = self.screen_h + 50
+            self.fly_anim = QPropertyAnimation(self.plane, b"pos")
+            self.fly_anim.setDuration(self._fly_duration_ms)
+            self.fly_anim.setStartValue(QPoint(start_x, start_y))
+            self.fly_anim.setEndValue(QPoint(start_x, end_y))
+            self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
+            self.fly_anim.finished.connect(self._on_fly_finished)
+            self.fly_anim.start()
+            return
+
         start_y = self._compute_start_y()
         end_y = start_y + random.randint(-30, 30)
         self.fly_anim = QPropertyAnimation(self.plane, b"pos")
@@ -124,6 +140,32 @@ class FlightWidget(QWidget):
             # 达到循环次数，飞机停在最后一次结束位置
             self.fly_anim.stop()
             self._fly_stopped = True
+            return
+
+        if self._fly_path == "vertical_pong":
+            current_pos = self.plane.pos()
+            new_x = current_pos.x() + random.randint(30, 80)
+
+            if new_x > self.screen_w + 100:
+                if self._fly_bounce and not self._fly_stopped:
+                    new_x = int(self.screen_w * self._re_flight_x_ratio) + random.randint(-100, 100)
+                    self.plane.move(new_x, -self.plane.height())
+                    self.fly_anim.setStartValue(QPoint(new_x, -self.plane.height()))
+                    self.fly_anim.setEndValue(QPoint(new_x, self.screen_h + 50))
+                    self.fly_anim.start()
+                return
+
+            if self._pong_direction == 1:  # was going down
+                self._pong_direction = -1
+                self.plane.move(new_x, self.screen_h + 50)
+                self.fly_anim.setStartValue(QPoint(new_x, self.screen_h + 50))
+                self.fly_anim.setEndValue(QPoint(new_x, -self.plane.height()))
+            else:  # was going up
+                self._pong_direction = 1
+                self.plane.move(new_x, -self.plane.height())
+                self.fly_anim.setStartValue(QPoint(new_x, -self.plane.height()))
+                self.fly_anim.setEndValue(QPoint(new_x, self.screen_h + 50))
+            self.fly_anim.start()
             return
 
         start_y_base = int(self.screen_h * self._re_flight_y_ratio)
@@ -179,12 +221,15 @@ class FlightWidget(QWidget):
             self._vertical_jitter = int(kwargs["vertical_jitter"])
         if "re_flight_y_ratio" in kwargs:
             self._re_flight_y_ratio = float(kwargs["re_flight_y_ratio"])
+        if "re_flight_x_ratio" in kwargs:
+            self._re_flight_x_ratio = max(0.0, min(1.0, float(kwargs["re_flight_x_ratio"])))
         if "re_flight_jitter" in kwargs:
             self._re_flight_jitter = int(kwargs["re_flight_jitter"])
 
         # 重置飞行状态，用新参数重新开始
         self._fly_count = 0
         self._fly_direction = 1
+        self._pong_direction = 1
         self._fly_stopped = False
         if hasattr(self, "fly_anim"):
             self.fly_anim.stop()
@@ -215,6 +260,7 @@ class FlightWidget(QWidget):
         self.fly_anim.stop()
         # show_notification 总是强制单向从左到右（用户行为兼容）
         self._fly_direction = 1
+        self._pong_direction = 1
         self._fly_count = 0
         self._fly_stopped = False
         self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))

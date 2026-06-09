@@ -189,7 +189,60 @@ def _new_settings() -> QSettings:
         config_dir = str(Path.home() / ".config" / "messageflight")
     Path(config_dir).mkdir(parents=True, exist_ok=True)
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_dir)
+    _ensure_example_config(Path(config_dir))
     return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, ORG, APP)
+
+
+def _ensure_example_config(config_dir: Path) -> None:
+    """Create a config.example.ini if it doesn't already exist."""
+    example_path = config_dir / "config.example.ini"
+    if example_path.exists():
+        return
+    example_content = '''; MessageFlight 配置文件示例
+; 文件位置: ~/.config/messageflight/MessageFlight.ini
+; 警告: 此文件仅为示例，实际配置由程序自动管理。
+;       手动修改前请先退出程序。
+
+[MessageFlight]
+; 配色主题: default(默认粉) | retro(复古绿) | cyber(未来赛博)
+color_scheme=default
+
+; 9 个颜色值 (hex 格式)
+plane_color=#FF69B4
+wing_color=#FF1493
+accent_color=#FFFFFF
+decor_color=#FF69B4
+banner_color=#FFB6C1
+text_color=#FFFFFF
+thruster_outer_color=#FFA500
+thruster_middle_color=#FF4500
+thruster_inner_color=#FFFF00
+
+; 飞行模式: 低调 | 标准 | 胡闹
+flight_mode=标准
+
+; 飞行参数字典 (JSON 格式)
+; fly_bounce: 是否弹跳 (true/false)
+; fly_loop_count: 循环次数 (-1=无限)
+; fly_path: 飞行路径 (horizontal | vertical_pong)
+; fly_duration_ms: 飞行时长 (毫秒)
+; float_duration_ms: 悬浮时长 (毫秒)
+; vertical_jitter: 垂直抖动幅度
+; notification_interval_ms: 通知间隔 (毫秒)
+flight_kwargs_json={"fly_bounce": false, "fly_loop_count": -1, "fly_path": "horizontal", "fly_duration_ms": 8000, "float_duration_ms": 1500, "vertical_jitter": 100, "notification_interval_ms": 5000}
+
+; TTS 引擎: sapi(本地语音) | minimax(在线语音)
+tts_provider=sapi
+
+; MiniMax Token Plan 订阅 Key
+; 获取方式: https://platform.minimaxi.com/subscribe/token-plan
+; 注意: 这是订阅 Key，不是按量计费的 API Key
+minimax_subscription_key=your-subscription-key-here
+'''
+    try:
+        example_path.write_text(example_content, encoding="utf-8")
+    except OSError:
+        pass
 
 
 def load_config() -> AppConfig:

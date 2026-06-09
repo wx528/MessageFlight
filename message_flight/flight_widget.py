@@ -27,7 +27,7 @@ class FlightWidget(QWidget):
         re_flight_jitter: int = 120,
         re_flight_jitter_min_ratio: float = -1.0,
         notification_interval_ms: int = 5000,
-        plane_colors: dict[str, str] | None = None,
+        plane_colors: dict = None,
     ):
         super().__init__()
         self.setWindowFlags(

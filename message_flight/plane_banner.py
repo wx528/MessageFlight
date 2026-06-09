@@ -1,4 +1,6 @@
 """Custom QWidget that draws a plane with a notification banner."""
+from typing import Optional
+
 from PyQt6.QtCore import Qt, pyqtProperty
 from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QFontMetrics
 from PyQt6.QtWidgets import QWidget
@@ -56,15 +58,15 @@ class PlaneBanner(QWidget):
     def update_colors(
         self,
         *,
-        plane_color: str | None = None,
-        wing_color: str | None = None,
-        accent_color: str | None = None,
-        decor_color: str | None = None,
-        banner_color: str | None = None,
-        text_color: str | None = None,
-        thruster_outer_color: str | None = None,
-        thruster_middle_color: str | None = None,
-        thruster_inner_color: str | None = None,
+        plane_color: Optional[str] = None,
+        wing_color: Optional[str] = None,
+        accent_color: Optional[str] = None,
+        decor_color: Optional[str] = None,
+        banner_color: Optional[str] = None,
+        text_color: Optional[str] = None,
+        thruster_outer_color: Optional[str] = None,
+        thruster_middle_color: Optional[str] = None,
+        thruster_inner_color: Optional[str] = None,
     ) -> None:
         """Replace any of the 9 color attributes and request a repaint.
 

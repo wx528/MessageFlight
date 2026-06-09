@@ -135,15 +135,15 @@ class PlaneBanner(QWidget):
 
         # 三层 y 错落（25/26/27）让火焰视觉上更自然
         outer_w = int(14 * intensity)
-        painter.setBrush(QColor("#FFA500"))
+        painter.setBrush(self._thruster_outer_color)
         painter.drawEllipse(5, 25, outer_w, 10)
 
         mid_w = int(10 * intensity)
-        painter.setBrush(QColor("#FF4500"))
+        painter.setBrush(self._thruster_middle_color)
         painter.drawEllipse(5, 26, mid_w, 7)
 
         inner_w = int(5 * intensity)
-        painter.setBrush(QColor("#FFFF00"))
+        painter.setBrush(self._thruster_inner_color)
         painter.drawEllipse(5, 27, inner_w, 4)
 
     def _draw_plane(self, painter: QPainter):

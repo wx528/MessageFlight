@@ -24,7 +24,7 @@ class TrayApplication:
 
         # Load persisted color scheme and hand it to the widget
         cfg = load_config()
-        self.widget = FlightWidget(plane_colors=cfg.colors)
+        self.widget = FlightWidget(plane_colors=cfg.colors, **cfg.flight_kwargs)
         self.widget.show()
 
         # 系统托盘

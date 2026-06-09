@@ -1,4 +1,4 @@
-"""Tests for FlightWidget customization (Task 01)."""
+"""Tests for FlightWidget customization (Task 01) + flight mode presets (Task 06)."""
 import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -7,6 +7,8 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from PyQt6.QtWidgets import QApplication
+
+from message_flight.config import FLIGHT_MODE_NAMES, FLIGHT_MODES
 
 
 @pytest.fixture(scope="module")
@@ -171,3 +173,25 @@ def test_flight_widget_accepts_plane_colors_kwarg(qapp):
     assert widget.plane._plane_color.name().lower() == "#00ff00"
     assert widget.plane._wing_color.name().lower() == "#111111"
     assert widget.plane._thruster_inner_color.name().lower() == "#888888"
+
+
+def test_flight_widget_accepts_all_flight_mode_kwargs(qapp):
+    """For each of the 3 flight modes, unpacking FLIGHT_MODES[name] must build a valid FlightWidget.
+
+    This guards the contract that ``cfg.flight_kwargs`` (loaded from
+    QSettings) can always be splatted into ``FlightWidget(**cfg.flight_kwargs)``
+    without crashing and that key instance attributes are populated.
+    """
+    for name in FLIGHT_MODE_NAMES:
+        mode = FLIGHT_MODES[name]
+        widget = _make_widget(qapp, plane_colors=mode.colors, **mode.flight_kwargs)
+        # Spot-check the 7 attributes the presets actually use
+        assert widget._fly_bounce == mode.flight_kwargs["fly_bounce"], name
+        assert widget._fly_loop_count == mode.flight_kwargs["fly_loop_count"], name
+        assert widget._fly_path == mode.flight_kwargs["fly_path"], name
+        assert widget._fly_duration_ms == mode.flight_kwargs["fly_duration_ms"], name
+        assert widget._float_duration_ms == mode.flight_kwargs["float_duration_ms"], name
+        assert widget._vertical_jitter == mode.flight_kwargs["vertical_jitter"], name
+        assert widget._notification_interval_ms == mode.flight_kwargs["notification_interval_ms"], name
+        # The widget's PlaneBanner must have received the mode's palette
+        assert widget.plane._plane_color.name().lower() == mode.colors["plane_color"].lower(), name

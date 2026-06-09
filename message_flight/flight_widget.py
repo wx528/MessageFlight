@@ -8,12 +8,18 @@ from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.plane_banner import PlaneBanner
 
 
+_VALID_FLY_PATHS = ("horizontal", "zigzag_top_down", "zigzag_bottom_up", "around")
+
+
 class FlightWidget(QWidget):
     def __init__(
         self,
         *,
         float_duration_ms: int = 1500,
         fly_duration_ms: int = 8000,
+        fly_loop_count: int = -1,
+        fly_bounce: bool = False,
+        fly_path: str = "horizontal",
         initial_y_ratio: float = 0.25,
         vertical_jitter: int = 100,
         notification_interval_ms: int = 5000,
@@ -35,11 +41,31 @@ class FlightWidget(QWidget):
         self.plane = PlaneBanner(self)
         self.plane.set_text(NOTIFICATIONS[0])
 
+        # 飞行行为配置
         self._float_duration_ms = int(float_duration_ms)
         self._fly_duration_ms = int(fly_duration_ms)
+        self._fly_loop_count = int(fly_loop_count)
+        self._fly_bounce = bool(fly_bounce)
+        self._fly_path = fly_path
         self._initial_y_ratio = float(initial_y_ratio)
         self._vertical_jitter = int(vertical_jitter)
         self._notification_interval_ms = int(notification_interval_ms)
+
+        if self._fly_path not in _VALID_FLY_PATHS:
+            raise ValueError(
+                f"fly_path must be one of {_VALID_FLY_PATHS}, got {self._fly_path!r}"
+            )
+        if self._fly_path in ("zigzag_top_down", "zigzag_bottom_up"):
+            raise NotImplementedError(
+                f"{self._fly_path} path not implemented in this task"
+            )
+        if self._fly_path == "around":
+            raise NotImplementedError("around path not implemented in this task")
+
+        # 飞行状态
+        self._fly_count = 0
+        self._fly_direction = 1  # 1 = left→right, -1 = right→left
+        self._fly_stopped = False
 
         start_y = self._compute_start_y()
         self.plane.move(-self.plane.width(), start_y)
@@ -80,11 +106,39 @@ class FlightWidget(QWidget):
         self.fly_anim.start()
 
     def _on_fly_finished(self):
-        start_y = self._compute_start_y() + self.screen_h // 20
-        end_y = start_y + random.randint(-30, 30)
-        self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
-        self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
-        self.fly_anim.start()
+        if self._fly_stopped:
+            return
+
+        self._fly_count += 1
+        if 0 < self._fly_loop_count <= self._fly_count:
+            # 达到循环次数，飞机停在最后一次结束位置
+            self.fly_anim.stop()
+            self._fly_stopped = True
+            return
+
+        if self._fly_bounce:
+            # 来回飞：切换方向，从对面进入
+            if self._fly_direction == 1:
+                new_start_x = self.screen_w + 50
+                new_end_x = -self.plane.width()
+                self._fly_direction = -1
+            else:
+                new_start_x = -self.plane.width()
+                new_end_x = self.screen_w + 50
+                self._fly_direction = 1
+            start_y = self._compute_start_y()
+            end_y = start_y + random.randint(-30, 30)
+            self.plane.move(new_start_x, start_y)
+            self.fly_anim.setStartValue(QPoint(new_start_x, start_y))
+            self.fly_anim.setEndValue(QPoint(new_end_x, end_y))
+            self.fly_anim.start()
+        else:
+            # 单向飞：从左到右，循环
+            start_y = self._compute_start_y()
+            end_y = start_y + random.randint(-30, 30)
+            self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
+            self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
+            self.fly_anim.start()
 
     def _next_message(self):
         self.msg_index = (self.msg_index + 1) % len(NOTIFICATIONS)
@@ -114,6 +168,10 @@ class FlightWidget(QWidget):
         start_y = self._compute_start_y()
         end_y = start_y + random.randint(-30, 30)
         self.fly_anim.stop()
+        # show_notification 总是强制单向从左到右（用户行为兼容）
+        self._fly_direction = 1
+        self._fly_count = 0
+        self._fly_stopped = False
         self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
         self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
         self.fly_anim.start()

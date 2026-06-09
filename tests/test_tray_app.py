@@ -24,4 +24,4 @@ def test_on_real_notification_calls_tts_speak():
         mock_tts_cls.return_value = mock_tts
         app = TrayApplication()
         app._on_real_notification("WeChat", "hello")
-        mock_tts.speak.assert_called_once()
+        mock_tts.speak.assert_called_once_with("[WeChat] hello")

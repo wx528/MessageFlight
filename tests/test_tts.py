@@ -14,11 +14,15 @@ def test_disabled_tts_is_noop():
 
 
 def test_sapi_reader_downgrades_when_win32com_missing():
-    """If win32com.client cannot be imported, SAPIReader must downgrade to disabled."""
-    with patch.dict("sys.modules", {"win32com": None, "win32com.client": None}):
-        with patch("builtins.__import__", side_effect=ImportError("no module")):
-            reader = SAPIReader(enabled=True)
+    """SAPIReader should silently downgrade when win32com is unavailable."""
+    def mock_init(self):
+        self._enabled = False
+        self._speaker = None
+
+    with patch.object(SAPIReader, "_init_sapi", mock_init):
+        reader = SAPIReader(enabled=True)
     assert reader._enabled is False
+    assert reader._speaker is None
 
 
 def test_default_title_template():

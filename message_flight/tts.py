@@ -23,7 +23,7 @@ class TTSReader:
         if not self._enabled:
             return
         try:
-            text = self._title_template.format(message=message)
+            text = self._title_template.replace("{message}", message)
         except Exception as e:
             print(f"TTS format error: {e}", file=sys.stderr)
             return

@@ -19,7 +19,7 @@ def test_on_real_notification_calls_tts_speak():
          patch("message_flight.tray_app.QAction"), \
          patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
          patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
-         patch("message_flight.tray_app.SAPIReader") as mock_tts_cls:
+         patch("message_flight.tray_app.TTSManager") as mock_tts_cls:
         mock_tts = MagicMock()
         mock_tts_cls.return_value = mock_tts
         app = TrayApplication()

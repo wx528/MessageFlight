@@ -12,7 +12,7 @@ from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
 from message_flight.notification_worker import NotificationWorker, WINSOK_AVAILABLE
 from message_flight.settings_dialog import SettingsDialog
-from message_flight.tts import SAPIReader
+from message_flight.tts_manager import TTSManager
 
 
 class TrayApplication:
@@ -28,10 +28,7 @@ class TrayApplication:
         self.widget = FlightWidget(plane_colors=cfg.colors, **cfg.flight_kwargs)
         self.widget.show()
 
-        self.tts = SAPIReader(
-            enabled=True,
-            title_template="您有新消息了。{message}",
-        )
+        self.tts = TTSManager(cfg)
 
         # 系统托盘
         self.tray_icon = QSystemTrayIcon(self._create_tray_icon(), self.app)
@@ -55,11 +52,6 @@ class TrayApplication:
         self.action_settings = QAction("设置...", self.menu)
         self.action_settings.triggered.connect(self._open_settings)
         self.menu.addAction(self.action_settings)
-
-        self.action_online_tts = QAction("在线 TTS (未实现)", self.menu)
-        self.action_online_tts.setEnabled(False)
-        self.action_online_tts.setToolTip("v0.1.9 将支持 MiniMax / MeloTTS 等在线 TTS 引擎")
-        self.menu.addAction(self.action_online_tts)
 
         self.menu.addSeparator()
 
@@ -182,6 +174,7 @@ class TrayApplication:
             save_config(new_cfg)
             self.widget.plane.update_colors(**new_cfg.colors)
             self.widget.set_flight_kwargs(**new_cfg.flight_kwargs)
+            self.tts.update_config(new_cfg)
 
     def _quit(self):
         if self.notifier:

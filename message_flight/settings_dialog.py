@@ -142,9 +142,9 @@ class SettingsDialog(QDialog):
         root.addLayout(provider_row)
 
         # API Key (enabled only for minimax)
-        self._api_key_label = QLabel("MiniMax API Key:")
-        self._api_key_edit = QLineEdit(initial.minimax_api_key)
-        self._api_key_edit.setPlaceholderText("sk-...")
+        self._api_key_label = QLabel("MiniMax 订阅 Key:")
+        self._api_key_edit = QLineEdit(initial.minimax_subscription_key)
+        self._api_key_edit.setPlaceholderText("Token Plan 订阅 Key")
         form.addRow(self._api_key_label, self._api_key_edit)
         self._update_api_key_enabled(initial.tts_provider)
 
@@ -185,7 +185,7 @@ class SettingsDialog(QDialog):
             flight_kwargs=dict(self._current_flight_kwargs),
             online_tts_api_key=self._api_key_edit.text(),
             tts_provider=self._provider_combo.currentText(),
-            minimax_api_key=self._api_key_edit.text(),
+            minimax_subscription_key=self._api_key_edit.text(),
         )
 
     # ------------------------------------------------------------------

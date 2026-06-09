@@ -37,7 +37,7 @@ class TTSManager(QObject):
             title_template="您有新消息了。{message}",
         )
         self._providers["minimax"] = MiniMaxReader(
-            api_key=self._config.minimax_api_key,
+            api_key=self._config.minimax_subscription_key,
             enabled=True,
             title_template="您有新消息了。{message}",
         )
@@ -65,7 +65,7 @@ class TTSManager(QObject):
         # Update MiniMaxReader API key if changed
         minimax = self._providers.get("minimax")
         if isinstance(minimax, MiniMaxReader):
-            minimax._api_key = config.minimax_api_key
+            minimax._api_key = config.minimax_subscription_key
 
         if old_provider != self._current_provider_name:
             self.provider_changed.emit(self._current_provider_name)

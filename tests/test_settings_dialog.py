@@ -130,4 +130,4 @@ def test_settings_dialog_returns_minimax_config(qapp):
 
     result = dlg.get_result()
     assert result.tts_provider == "minimax"
-    assert result.minimax_api_key == "my-api-key"
+    assert result.minimax_subscription_key == "my-api-key"

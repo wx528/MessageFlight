@@ -17,7 +17,7 @@ def test_tts_manager_switch_provider():
     cfg = AppConfig(tts_provider="sapi")
     mgr = TTSManager(cfg)
 
-    new_cfg = AppConfig(tts_provider="minimax", minimax_api_key="key")
+    new_cfg = AppConfig(tts_provider="minimax", minimax_subscription_key="key")
     mgr.update_config(new_cfg)
     assert mgr._current_provider_name == "minimax"
 
@@ -25,7 +25,7 @@ def test_tts_manager_switch_provider():
 def test_tts_manager_fallback_signal(qtbot):
     """MiniMax error must trigger fallback_triggered signal."""
     from message_flight.tts_manager import TTSManager
-    cfg = AppConfig(tts_provider="minimax", minimax_api_key="")
+    cfg = AppConfig(tts_provider="minimax", minimax_subscription_key="")
     mgr = TTSManager(cfg)
 
     with qtbot.waitSignal(mgr.fallback_triggered, timeout=1000):

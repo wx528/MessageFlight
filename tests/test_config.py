@@ -45,7 +45,7 @@ def test_load_config_default_tts_provider(isolated_settings):
     """Default tts_provider must be 'sapi'."""
     cfg = load_config()
     assert cfg.tts_provider == "sapi"
-    assert cfg.minimax_api_key == ""
+    assert cfg.minimax_subscription_key == ""
 
 
 def test_load_config_returns_defaults_when_empty(isolated_settings):
@@ -82,12 +82,12 @@ def test_save_load_tts_provider_round_trip(isolated_settings):
     """Saving a config with minimax provider must round-trip."""
     cfg = load_config()
     cfg.tts_provider = "minimax"
-    cfg.minimax_api_key = "test-key-123"
+    cfg.minimax_subscription_key = "test-key-123"
     save_config(cfg)
 
     loaded = load_config()
     assert loaded.tts_provider == "minimax"
-    assert loaded.minimax_api_key == "test-key-123"
+    assert loaded.minimax_subscription_key == "test-key-123"
 
 
 def test_save_config_uses_messageflight_org_and_app(isolated_settings, tmp_path):

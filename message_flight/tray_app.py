@@ -165,8 +165,10 @@ class TrayApplication:
         self.action_notif_status.setText(f"通知权限: {labels.get(status, '未知')} ({status})")
 
     def _send_demo_notification(self):
-        """Pick a random demo notification and fire it on the widget."""
+        """Pick a random demo notification, speak it, and fire it on the widget."""
         text = random.choice(NOTIFICATIONS)
+        logger.info("[Demo Notification] %s", text)
+        self.tts.speak(text)
         self.widget.show_notification(text)
 
     def _open_settings(self):

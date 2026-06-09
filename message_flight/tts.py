@@ -9,11 +9,12 @@ from __future__ import annotations
 import binascii
 import json
 import logging
+import os
 import sys
 import tempfile
 
 from PyQt6.QtCore import QByteArray, QObject, QUrl, pyqtSignal
-from PyQt6.QtMultimedia import QMediaPlayer
+from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,9 @@ class MiniMaxReader(TTSReader, QObject):
         self._vol = vol
         self._network = QNetworkAccessManager()
         self._player = QMediaPlayer()
+        self._audio_output = QAudioOutput()
+        self._player.setAudioOutput(self._audio_output)
+        self._audio_output.setVolume(1.0)
         self._buffer = None  # type: QByteArray | None
 
         self._network.finished.connect(self._on_reply_finished)

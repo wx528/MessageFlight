@@ -87,9 +87,11 @@ class FlightWidget(QWidget):
         self._setup_fly_animation()
 
         self.msg_index = 0
+        # 禁用自动轮播演示消息（只在用户点击"发送演示通知"时切换）
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._next_message)
-        self.timer.start(self._notification_interval_ms)
+        # 不再自动启动 timer
+        # self.timer.start(self._notification_interval_ms)
 
         self._paused = False
 
@@ -256,7 +258,8 @@ class FlightWidget(QWidget):
         else:
             self.fly_anim.resume()
             self.float_anim.resume()
-            self.timer.start()
+            # timer 不再自动启动
+            # self.timer.start()
 
     def is_paused(self):
         return self._paused

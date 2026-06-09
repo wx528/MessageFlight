@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import MagicMock
 
 from message_flight.config import AppConfig
 

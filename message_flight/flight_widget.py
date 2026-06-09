@@ -187,6 +187,8 @@ class FlightWidget(QWidget):
                 new_start_x = -self.plane.width()
                 new_end_x = self.screen_w + 50
                 self._fly_direction = 1
+            self.plane._facing_direction = self._fly_direction
+            self.plane.update()
             end_y = start_y + random.randint(-30, 30)
             self.plane.move(new_start_x, start_y)
             self.fly_anim.setStartValue(QPoint(new_start_x, start_y))
@@ -234,7 +236,9 @@ class FlightWidget(QWidget):
         # 重置飞行状态，用新参数重新开始
         self._fly_count = 0
         self._fly_direction = 1
-        self._pong_direction = 1
+        self.plane._facing_direction = 1
+        self.plane.update()
+        self._fly_count = 0
         self._fly_stopped = False
         if hasattr(self, "fly_anim"):
             self.fly_anim.stop()

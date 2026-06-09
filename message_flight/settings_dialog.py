@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -17,6 +18,7 @@ from PyQt6.QtWidgets import (
 from message_flight.config import (
     FLIGHT_MODE_NAMES,
     FLIGHT_MODES,
+    VALID_FLY_PATHS,
     AppConfig,
     DEFAULT_THEME,
     THEMES,
@@ -80,6 +82,19 @@ class SettingsDialog(QDialog):
         flight_mode_row.addWidget(QLabel("(重启生效)"))
         flight_mode_row.addStretch(1)
         root.addLayout(flight_mode_row)
+
+        # Fly-path row
+        path_row = QHBoxLayout()
+        path_row.addWidget(QLabel("飞行路径:"))
+        self._path_combo = QComboBox()
+        for p in VALID_FLY_PATHS:
+            self._path_combo.addItem(p)
+        current_path = self._current_flight_kwargs.get("fly_path", "horizontal")
+        self._path_combo.setCurrentText(current_path)
+        self._path_combo.currentTextChanged.connect(self._on_path_changed)
+        path_row.addWidget(self._path_combo)
+        path_row.addStretch(1)
+        root.addLayout(path_row)
 
         # Preset row
         preset_row = QHBoxLayout()
@@ -196,6 +211,10 @@ class SettingsDialog(QDialog):
         # _on_text_changed is fired automatically by setText, but the OK
         # button state must be re-evaluated once at the end.
         self._refresh_ok_enabled()
+
+    def _on_path_changed(self, text: str) -> None:
+        """Update the fly_path inside the current flight kwargs."""
+        self._current_flight_kwargs["fly_path"] = text
 
     def _apply_flight_mode(self, mode_name: str) -> None:
         """Switch to a named flight mode preset (flight params only).

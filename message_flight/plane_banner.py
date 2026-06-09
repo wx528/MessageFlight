@@ -33,6 +33,7 @@ class PlaneBanner(QWidget):
         self._thruster_middle_color = QColor(thruster_middle_color)
         self._thruster_inner_color = QColor(thruster_inner_color)
         self._plane_offset = 0.0
+        self._facing_direction = 1  # 1 = 朝右, -1 = 朝左
         self.setFixedSize(self._banner_width + 80, 80)
 
     def set_text(self, text: str):
@@ -96,6 +97,10 @@ class PlaneBanner(QWidget):
 
         painter.save()
         painter.translate(self._banner_width + 10, 15 + float_y)
+        # 根据飞行方向翻转飞机（船头始终朝向运行方向）
+        if self._facing_direction == -1:
+            painter.scale(-1, 1)
+            painter.translate(-80, 0)  # 补偿翻转后的位置偏移
         # z-order: thruster (back) → fuselage (middle) → wings (front)
         self._draw_thruster(painter)
         self._draw_fuselage(painter)

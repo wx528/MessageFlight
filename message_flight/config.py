@@ -26,6 +26,11 @@ ONLINE_TTS_API_KEY = "online_tts_api_key"
 
 DEFAULT_ONLINE_TTS_API_KEY = ""
 
+# User-facing flight paths.  ``horizontal`` is the classic left-to-right
+# sweep; ``vertical_pong`` enters from the top and bounces off the top
+# and bottom edges while drifting right.
+VALID_FLY_PATHS: tuple[str, ...] = ("horizontal", "vertical_pong")
+
 THEMES: dict[str, dict[str, str]] = {
     "default": {
         "plane_color": "#FF69B4",

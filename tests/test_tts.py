@@ -51,9 +51,9 @@ def test_minimax_reader_init():
 
 
 def test_minimax_reader_empty_key_emits_error(qtbot):
-    """MiniMaxReader with empty api_key must emit error_occurred."""
+    """MiniMaxReader with empty api_key must emit error_occurred with error_msg and original_text."""
     reader = MiniMaxReader(api_key="", enabled=True)
-    with qtbot.waitSignal(reader.error_occurred, timeout=1000):
+    with qtbot.waitSignal(reader.error_occurred, timeout=1000, check_params_cb=lambda msg, text: msg == "MiniMax API key is empty" and text == "test"):
         reader.speak("test")
 
 

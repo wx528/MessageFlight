@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -24,7 +25,7 @@ class TTSManager(QObject):
     provider_changed = pyqtSignal(str)
     fallback_triggered = pyqtSignal(str)
 
-    def __init__(self, config: AppConfig, parent: QObject | None = None):
+    def __init__(self, config: AppConfig, parent: Optional[QObject] = None):
         super().__init__(parent)
         self._config = config
         self._current_provider_name = config.tts_provider
@@ -80,11 +81,18 @@ class TTSManager(QObject):
         if old_provider != self._current_provider_name:
             self.provider_changed.emit(self._current_provider_name)
 
-    def _on_minimax_error(self, error_msg: str) -> None:
-        """Handle MiniMax error by falling back to SAPI."""
+    def _on_minimax_error(self, error_msg: str, original_text: str) -> None:
+        """Handle MiniMax error by falling back to SAPI.
+
+        Args:
+            error_msg: Human-readable error description.
+            original_text: The text that was supposed to be spoken;
+                passed explicitly to avoid race conditions with
+                rapid successive speak() calls.
+        """
         logger.error("TTSManager: MiniMax failed (%s), falling back to SAPI", error_msg)
         self.fallback_triggered.emit(error_msg)
         sapi = self._providers.get("sapi")
-        if sapi is not None and self._last_message:
-            logger.info("TTSManager: falling back to SAPI for message=%r", self._last_message[:50])
-            sapi.speak(self._last_message)
+        if sapi is not None and original_text:
+            logger.info("TTSManager: falling back to SAPI for message=%r", original_text[:50])
+            sapi.speak(original_text)

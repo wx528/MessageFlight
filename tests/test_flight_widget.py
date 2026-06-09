@@ -43,26 +43,11 @@ def test_default_constructor_no_args_uses_defaults(qapp):
     assert widget._fly_bounce is False
     assert widget._fly_path == "horizontal"
     assert widget._initial_y_ratio == 0.25
+    assert widget._re_flight_y_ratio == 0.2
     assert widget._vertical_jitter == 100
+    assert widget._re_flight_jitter == 120
+    assert widget._re_flight_jitter_min_ratio == -1.0
     assert widget._notification_interval_ms == 5000
-
-
-def test_fly_loop_count_zero_means_infinite(qapp):
-    """fly_loop_count <= 0 视作无限（默认值 -1）"""
-    widget = _make_widget(qapp, fly_loop_count=0)
-    widget._fly_count = 99999
-    # 0 < 0 永远为 False，所以停止条件永不成立 → 无限
-    assert not (0 < 0 <= 99999)
-
-
-def test_fly_loop_count_positive_will_stop(qapp):
-    """fly_loop_count=3 飞到 3 次后停止"""
-    widget = _make_widget(qapp, fly_loop_count=3)
-    assert widget._fly_loop_count == 3
-    # fly_count=3 时 0 < 3 <= 3 为 True → 停止
-    assert (0 < 3 <= 3) is True
-    # fly_count=2 时 0 < 3 <= 2 为 False → 继续
-    assert (0 < 3 <= 2) is False
 
 
 def test_fly_bounce_flag_stored(qapp):
@@ -149,3 +134,21 @@ def test_bounce_direction_initial_state(qapp):
     """初始 _fly_direction 应为 1（左→右）"""
     widget = _make_widget(qapp, fly_bounce=True)
     assert widget._fly_direction == 1
+
+
+def test_bounce_with_finite_loop_count_stops_at_limit(qapp):
+    """fly_bounce=True with fly_loop_count=N: after N finishes, _fly_stopped should be True."""
+    widget = _make_widget(qapp, fly_bounce=True, fly_loop_count=2)
+    widget.fly_anim = MagicMock()
+    assert widget._fly_loop_count == 2
+    assert widget._fly_count == 0
+    # Simulate first finish (left → right)
+    widget._fly_direction = 1
+    widget._on_fly_finished()
+    assert widget._fly_count == 1
+    assert widget._fly_stopped is False
+    # Simulate second finish (right → left)
+    widget._fly_direction = -1
+    widget._on_fly_finished()
+    assert widget._fly_count == 2
+    assert widget._fly_stopped is True

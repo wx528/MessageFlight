@@ -21,7 +21,10 @@ class FlightWidget(QWidget):
         fly_bounce: bool = False,
         fly_path: str = "horizontal",
         initial_y_ratio: float = 0.25,
+        re_flight_y_ratio: float = 0.2,
         vertical_jitter: int = 100,
+        re_flight_jitter: int = 120,
+        re_flight_jitter_min_ratio: float = -1.0,
         notification_interval_ms: int = 5000,
     ):
         super().__init__()
@@ -48,7 +51,10 @@ class FlightWidget(QWidget):
         self._fly_bounce = bool(fly_bounce)
         self._fly_path = fly_path
         self._initial_y_ratio = float(initial_y_ratio)
+        self._re_flight_y_ratio = float(re_flight_y_ratio)
         self._vertical_jitter = int(vertical_jitter)
+        self._re_flight_jitter = int(re_flight_jitter)
+        self._re_flight_jitter_min_ratio = float(re_flight_jitter_min_ratio)
         self._notification_interval_ms = int(notification_interval_ms)
 
         if self._fly_path not in _VALID_FLY_PATHS:
@@ -116,6 +122,12 @@ class FlightWidget(QWidget):
             self._fly_stopped = True
             return
 
+        start_y_base = int(self.screen_h * self._re_flight_y_ratio)
+        start_y = start_y_base + random.randint(
+            int(self._re_flight_jitter * self._re_flight_jitter_min_ratio),
+            self._re_flight_jitter,
+        )
+
         if self._fly_bounce:
             # 来回飞：切换方向，从对面进入
             if self._fly_direction == 1:
@@ -126,7 +138,6 @@ class FlightWidget(QWidget):
                 new_start_x = -self.plane.width()
                 new_end_x = self.screen_w + 50
                 self._fly_direction = 1
-            start_y = self._compute_start_y()
             end_y = start_y + random.randint(-30, 30)
             self.plane.move(new_start_x, start_y)
             self.fly_anim.setStartValue(QPoint(new_start_x, start_y))
@@ -134,7 +145,6 @@ class FlightWidget(QWidget):
             self.fly_anim.start()
         else:
             # 单向飞：从左到右，循环
-            start_y = self._compute_start_y()
             end_y = start_y + random.randint(-30, 30)
             self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
             self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))

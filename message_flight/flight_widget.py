@@ -26,6 +26,7 @@ class FlightWidget(QWidget):
         re_flight_jitter: int = 120,
         re_flight_jitter_min_ratio: float = -1.0,
         notification_interval_ms: int = 5000,
+        plane_colors: dict[str, str] | None = None,
     ):
         super().__init__()
         self.setWindowFlags(
@@ -41,7 +42,10 @@ class FlightWidget(QWidget):
         self.screen_h = screen.height()
         self.setGeometry(0, 0, self.screen_w, self.screen_h)
 
-        self.plane = PlaneBanner(self)
+        if plane_colors is None:
+            self.plane = PlaneBanner(self)
+        else:
+            self.plane = PlaneBanner(self, **plane_colors)
         self.plane.set_text(NOTIFICATIONS[0])
 
         # 飞行行为配置

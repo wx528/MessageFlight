@@ -152,3 +152,22 @@ def test_bounce_with_finite_loop_count_stops_at_limit(qapp):
     widget._on_fly_finished()
     assert widget._fly_count == 2
     assert widget._fly_stopped is True
+
+
+def test_flight_widget_accepts_plane_colors_kwarg(qapp):
+    """plane_colors dict must be forwarded to the inner PlaneBanner at construction time."""
+    palette = {
+        "plane_color": "#00FF00",
+        "wing_color": "#111111",
+        "accent_color": "#222222",
+        "decor_color": "#333333",
+        "banner_color": "#444444",
+        "text_color": "#555555",
+        "thruster_outer_color": "#666666",
+        "thruster_middle_color": "#777777",
+        "thruster_inner_color": "#888888",
+    }
+    widget = _make_widget(qapp, plane_colors=palette)
+    assert widget.plane._plane_color.name().lower() == "#00ff00"
+    assert widget.plane._wing_color.name().lower() == "#111111"
+    assert widget.plane._thruster_inner_color.name().lower() == "#888888"

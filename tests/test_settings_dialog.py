@@ -118,3 +118,16 @@ def test_flight_mode_does_not_change_colors(qapp):
     initial_plane_color = dlg._line_edits["plane_color"].text()
     dlg._flight_mode_buttons["胡闹"].click()
     assert dlg._line_edits["plane_color"].text() == initial_plane_color
+
+
+def test_settings_dialog_returns_minimax_config(qapp):
+    """SettingsDialog with minimax provider must return correct config."""
+    cfg = AppConfig(tts_provider="sapi")
+    dlg = SettingsDialog(cfg)
+    # Switch to minimax
+    dlg._provider_combo.setCurrentText("minimax")
+    dlg._api_key_edit.setText("my-api-key")
+
+    result = dlg.get_result()
+    assert result.tts_provider == "minimax"
+    assert result.minimax_api_key == "my-api-key"

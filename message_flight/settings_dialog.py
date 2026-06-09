@@ -129,12 +129,24 @@ class SettingsDialog(QDialog):
 
         root.addLayout(form)
 
-        # Online TTS API key (greyed out — v0.1.9)
-        self._api_key_label = QLabel("在线 TTS API 密钥:")
-        self._api_key_edit = QLineEdit(initial.online_tts_api_key)
-        self._api_key_edit.setPlaceholderText("v0.1.9 支持")
-        self._api_key_edit.setEnabled(False)
+        # TTS Provider row
+        provider_row = QHBoxLayout()
+        provider_row.addWidget(QLabel("TTS 引擎:"))
+        self._provider_combo = QComboBox()
+        for p in ("sapi", "minimax"):
+            self._provider_combo.addItem(p)
+        self._provider_combo.setCurrentText(initial.tts_provider)
+        self._provider_combo.currentTextChanged.connect(self._on_provider_changed)
+        provider_row.addWidget(self._provider_combo)
+        provider_row.addStretch(1)
+        root.addLayout(provider_row)
+
+        # API Key (enabled only for minimax)
+        self._api_key_label = QLabel("MiniMax API Key:")
+        self._api_key_edit = QLineEdit(initial.minimax_api_key)
+        self._api_key_edit.setPlaceholderText("sk-...")
         form.addRow(self._api_key_label, self._api_key_edit)
+        self._update_api_key_enabled(initial.tts_provider)
 
         # OK / Cancel
         self._button_box = QDialogButtonBox(
@@ -172,6 +184,8 @@ class SettingsDialog(QDialog):
             flight_mode=self._current_flight_mode,
             flight_kwargs=dict(self._current_flight_kwargs),
             online_tts_api_key=self._api_key_edit.text(),
+            tts_provider=self._provider_combo.currentText(),
+            minimax_api_key=self._api_key_edit.text(),
         )
 
     # ------------------------------------------------------------------
@@ -215,6 +229,16 @@ class SettingsDialog(QDialog):
     def _on_path_changed(self, text: str) -> None:
         """Update the fly_path inside the current flight kwargs."""
         self._current_flight_kwargs["fly_path"] = text
+
+    def _on_provider_changed(self, text: str) -> None:
+        """Enable/disable API Key input based on provider selection."""
+        self._update_api_key_enabled(text)
+
+    def _update_api_key_enabled(self, provider: str) -> None:
+        """API Key is only needed for minimax."""
+        is_minimax = provider == "minimax"
+        self._api_key_label.setEnabled(is_minimax)
+        self._api_key_edit.setEnabled(is_minimax)
 
     def _apply_flight_mode(self, mode_name: str) -> None:
         """Switch to a named flight mode preset (flight params only).

@@ -1,4 +1,4 @@
-"""Modal settings dialog for editing the 9-color plane/banner palette."""
+"""Modal settings dialog for editing the 9-color plane/banner palette and the flight mode preset."""
 from __future__ import annotations
 
 from PyQt6.QtGui import QColor
@@ -14,7 +14,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from message_flight.config import AppConfig, DEFAULT_THEME, THEMES
+from message_flight.config import (
+    FLIGHT_MODE_NAMES,
+    FLIGHT_MODES,
+    AppConfig,
+    DEFAULT_THEME,
+    THEMES,
+)
 
 
 # Human-readable label + the matching key in THEMES / AppConfig.colors
@@ -39,7 +45,7 @@ _PRESETS: tuple[tuple[str, str], ...] = (
 
 
 class SettingsDialog(QDialog):
-    """A 9-row form for editing the plane color palette, plus 3 preset buttons.
+    """A 9-row form for editing the plane color palette, plus 3 flight-mode + 3 color preset buttons.
 
     The dialog does not mutate the live widget directly; the caller is
     expected to call :meth:`get_result` after the dialog is accepted
@@ -54,12 +60,30 @@ class SettingsDialog(QDialog):
         self._current_theme_name = initial.theme_name or DEFAULT_THEME
         self._line_edits: dict[str, QLineEdit] = {}
         self._swatches: dict[str, QLabel] = {}
+        self._current_flight_mode: str = initial.flight_mode
+        # Copy so external mutations to the AppConfig don't leak in/out.
+        self._current_flight_kwargs: dict = dict(initial.flight_kwargs)
+        self._flight_mode_buttons: dict[str, QPushButton] = {}
 
         root = QVBoxLayout(self)
 
+        # Flight-mode row (Task 06) — sits at the TOP, above the color preset row
+        flight_mode_row = QHBoxLayout()
+        flight_mode_row.addWidget(QLabel("飞行模式:"))
+        for mode_name in FLIGHT_MODE_NAMES:
+            btn = QPushButton(mode_name)
+            btn.clicked.connect(
+                lambda _checked=False, name=mode_name: self._apply_flight_mode(name)
+            )
+            self._flight_mode_buttons[mode_name] = btn
+            flight_mode_row.addWidget(btn)
+        flight_mode_row.addWidget(QLabel("(重启生效)"))
+        flight_mode_row.addStretch(1)
+        root.addLayout(flight_mode_row)
+
         # Preset row
         preset_row = QHBoxLayout()
-        preset_row.addWidget(QLabel("预设:"))
+        preset_row.addWidget(QLabel("配色:"))
         for label, theme_key in _PRESETS:
             btn = QPushButton(label)
             btn.clicked.connect(lambda _checked=False, key=theme_key: self._apply_preset(key))
@@ -120,7 +144,12 @@ class SettingsDialog(QDialog):
             text = self._line_edits[key].text().strip()
             qc = QColor(text)
             colors[key] = qc.name() if qc.isValid() else text
-        return AppConfig(theme_name=self._current_theme_name, colors=colors)
+        return AppConfig(
+            theme_name=self._current_theme_name,
+            colors=colors,
+            flight_mode=self._current_flight_mode,
+            flight_kwargs=dict(self._current_flight_kwargs),
+        )
 
     # ------------------------------------------------------------------
     # Internals
@@ -159,3 +188,24 @@ class SettingsDialog(QDialog):
         # _on_text_changed is fired automatically by setText, but the OK
         # button state must be re-evaluated once at the end.
         self._refresh_ok_enabled()
+
+    def _apply_flight_mode(self, mode_name: str) -> None:
+        """Switch to a named flight mode preset (color theme + flight params).
+
+        Looks up the preset in :data:`FLIGHT_MODES`, fills the 9 color
+        QLineEdits with the mode's palette, and records the mode's
+        flight kwargs in :attr:`_current_flight_kwargs` so a subsequent
+        call to :meth:`get_result` returns a complete :class:`AppConfig`.
+
+        The live :class:`FlightWidget` is NOT updated here — the spec
+        keeps ``flight_widget.py`` out of scope and the new flight
+        kwargs take effect on the next application restart (a
+        "重启生效" label next to the mode row makes this clear to the
+        user).
+        """
+        if mode_name not in FLIGHT_MODES:
+            return
+        mode = FLIGHT_MODES[mode_name]
+        self._apply_preset(mode.theme_name)
+        self._current_flight_mode = mode_name
+        self._current_flight_kwargs = dict(mode.flight_kwargs)

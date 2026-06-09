@@ -1,4 +1,4 @@
-"""Tests for the SettingsDialog (Task 05)."""
+"""Tests for the SettingsDialog (Task 05) + flight mode row (Task 06)."""
 import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -9,7 +9,14 @@ import pytest
 
 from PyQt6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLineEdit, QPushButton
 
-from message_flight.config import AppConfig, DEFAULT_THEME, THEMES
+from message_flight.config import (
+    FLIGHT_MODE_NAMES,
+    FLIGHT_MODES,
+    AppConfig,
+    DEFAULT_FLIGHT_MODE,
+    DEFAULT_THEME,
+    THEMES,
+)
 from message_flight.settings_dialog import SettingsDialog
 
 
@@ -78,3 +85,31 @@ def test_get_result_after_ok_returns_new_config(qapp):
         if key == "plane_color":
             continue
         assert result.colors[key].lower() == value.lower()
+
+
+def test_click_flight_mode_button_updates_internal_state(qapp):
+    """Clicking the '胡闹' flight-mode button must update _current_flight_mode + _current_flight_kwargs + 9 QLineEdits."""
+    cfg = AppConfig(theme_name=DEFAULT_THEME, colors=dict(THEMES[DEFAULT_THEME]))
+    dlg = SettingsDialog(cfg)
+    # Sanity: the dialog exposes exactly 3 flight-mode buttons, one per mode name
+    assert set(dlg._flight_mode_buttons.keys()) == set(FLIGHT_MODE_NAMES)
+    # Find the '胡闹' button via the public attribute (mirrors the _PRESETS pattern)
+    btn = dlg._flight_mode_buttons["胡闹"]
+    assert isinstance(btn, QPushButton)
+    btn.click()
+
+    cyber = FLIGHT_MODES["胡闹"]
+    # 1. Internal flight mode + kwargs must reflect the click
+    assert dlg._current_flight_mode == "胡闹"
+    assert dlg._current_flight_kwargs["fly_bounce"] is True
+    assert dlg._current_flight_kwargs["fly_loop_count"] == -1
+    # 2. All 9 color QLineEdits must now show the cyber theme's hex values
+    for key, expected in cyber.colors.items():
+        actual = dlg._line_edits[key].text()
+        assert actual == expected, f"{key}: expected {expected!r}, got {actual!r}"
+    # 3. The dialog must NOT have closed
+    assert dlg.result() != QDialog.DialogCode.Accepted
+    # 4. get_result() must surface the new flight mode + kwargs
+    result = dlg.get_result()
+    assert result.flight_mode == "胡闹"
+    assert result.flight_kwargs == cyber.flight_kwargs

@@ -67,15 +67,13 @@ DEFAULT_THEME = "default"
 
 @dataclass
 class FlightModeConfig:
-    """Bundle a color theme + a set of flight-behavior parameters.
+    """A set of flight-behavior parameters.
 
-    A flight mode preset lets the user switch both the visual palette
-    and the in-flight tuning knobs in one click. The ``flight_kwargs``
-    dict is forwarded as keyword arguments to :class:`FlightWidget`.
+    A flight mode preset lets the user switch the in-flight tuning
+    knobs in one click. The ``flight_kwargs`` dict is forwarded as
+    keyword arguments to :class:`FlightWidget`.
     """
 
-    theme_name: str
-    colors: dict[str, str]
     flight_kwargs: dict[str, Any]
 
 
@@ -91,48 +89,36 @@ VALID_FLIGHT_KWARG_KEYS: tuple[str, ...] = (
     "notification_interval_ms",
 )
 
-# The 3 named flight modes. Each bundles a color scheme + a set of
-# flight-behavior kwargs. Values copied verbatim from the design spec.
-FLIGHT_MODES: dict[str, FlightModeConfig] = {
-    "低调": FlightModeConfig(
-        theme_name="default",
-        colors=dict(THEMES["default"]),
-        flight_kwargs={
-            "fly_bounce": False,
-            "fly_loop_count": 1,
-            "fly_path": "horizontal",
-            "fly_duration_ms": 12000,
-            "float_duration_ms": 1500,
-            "vertical_jitter": 30,
-            "notification_interval_ms": 8000,
-        },
-    ),
-    "标准": FlightModeConfig(
-        theme_name="default",
-        colors=dict(THEMES["default"]),
-        flight_kwargs={
-            "fly_bounce": False,
-            "fly_loop_count": -1,
-            "fly_path": "horizontal",
-            "fly_duration_ms": 8000,
-            "float_duration_ms": 1500,
-            "vertical_jitter": 100,
-            "notification_interval_ms": 5000,
-        },
-    ),
-    "胡闹": FlightModeConfig(
-        theme_name="cyber",
-        colors=dict(THEMES["cyber"]),
-        flight_kwargs={
-            "fly_bounce": True,
-            "fly_loop_count": -1,
-            "fly_path": "horizontal",
-            "fly_duration_ms": 3000,
-            "float_duration_ms": 1500,
-            "vertical_jitter": 200,
-            "notification_interval_ms": 2000,
-        },
-    ),
+# The 3 named flight modes. Each is a plain dict of flight-behavior kwargs.
+# Values copied verbatim from the design spec.
+FLIGHT_MODES: dict[str, dict[str, Any]] = {
+    "低调": {
+        "fly_bounce": False,
+        "fly_loop_count": 1,
+        "fly_path": "horizontal",
+        "fly_duration_ms": 12000,
+        "float_duration_ms": 1500,
+        "vertical_jitter": 30,
+        "notification_interval_ms": 8000,
+    },
+    "标准": {
+        "fly_bounce": False,
+        "fly_loop_count": -1,
+        "fly_path": "horizontal",
+        "fly_duration_ms": 8000,
+        "float_duration_ms": 1500,
+        "vertical_jitter": 100,
+        "notification_interval_ms": 5000,
+    },
+    "胡闹": {
+        "fly_bounce": True,
+        "fly_loop_count": -1,
+        "fly_path": "horizontal",
+        "fly_duration_ms": 3000,
+        "float_duration_ms": 1500,
+        "vertical_jitter": 200,
+        "notification_interval_ms": 2000,
+    },
 }
 
 # User-facing order for the 3 mode buttons in the settings dialog.
@@ -178,7 +164,7 @@ class AppConfig:
     colors: dict[str, str] = field(default_factory=dict)
     flight_mode: str = DEFAULT_FLIGHT_MODE
     flight_kwargs: dict[str, Any] = field(
-        default_factory=lambda: dict(FLIGHT_MODES[DEFAULT_FLIGHT_MODE].flight_kwargs)
+        default_factory=lambda: dict(FLIGHT_MODES[DEFAULT_FLIGHT_MODE])
     )
     online_tts_api_key: str = DEFAULT_ONLINE_TTS_API_KEY
 
@@ -213,7 +199,7 @@ def load_config() -> AppConfig:
         flight_mode = str(settings.value(FLIGHT_MODE_KEY, DEFAULT_FLIGHT_MODE))
         if flight_mode not in FLIGHT_MODES:
             flight_mode = DEFAULT_FLIGHT_MODE
-        default_kwargs = FLIGHT_MODES[flight_mode].flight_kwargs
+        default_kwargs = FLIGHT_MODES[flight_mode]
         raw_kwargs_json = settings.value(FLIGHT_KWARG_KEY, None)
         if raw_kwargs_json is None or str(raw_kwargs_json) == "":
             flight_kwargs: dict[str, Any] = dict(default_kwargs)
@@ -258,7 +244,7 @@ def save_config(cfg: AppConfig) -> None:
         except ValueError as e:
             print(f"save_config: invalid flight_kwargs ({e!r}); using mode defaults", file=sys.stderr)
             mode = FLIGHT_MODES.get(cfg.flight_mode, FLIGHT_MODES[DEFAULT_FLIGHT_MODE])
-            flight_kwargs_to_save = dict(mode.flight_kwargs)
+            flight_kwargs_to_save = dict(mode)
 
         settings = _new_settings()
         try:
@@ -282,6 +268,6 @@ def _default_config() -> AppConfig:
         theme_name=DEFAULT_THEME,
         colors=dict(THEMES[DEFAULT_THEME]),
         flight_mode=DEFAULT_FLIGHT_MODE,
-        flight_kwargs=dict(mode.flight_kwargs),
+        flight_kwargs=dict(mode),
         online_tts_api_key=DEFAULT_ONLINE_TTS_API_KEY,
     )

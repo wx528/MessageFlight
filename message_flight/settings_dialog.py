@@ -198,22 +198,19 @@ class SettingsDialog(QDialog):
         self._refresh_ok_enabled()
 
     def _apply_flight_mode(self, mode_name: str) -> None:
-        """Switch to a named flight mode preset (color theme + flight params).
+        """Switch to a named flight mode preset (flight params only).
 
-        Looks up the preset in :data:`FLIGHT_MODES`, fills the 9 color
-        QLineEdits with the mode's palette, and records the mode's
-        flight kwargs in :attr:`_current_flight_kwargs` so a subsequent
-        call to :meth:`get_result` returns a complete :class:`AppConfig`.
+        Looks up the preset in :data:`FLIGHT_MODES` and records the
+        mode's flight kwargs in :attr:`_current_flight_kwargs` so a
+        subsequent call to :meth:`get_result` returns a complete
+        :class:`AppConfig`.  Color fields are NOT touched.
 
-        The live :class:`FlightWidget` is NOT updated here — the spec
-        keeps ``flight_widget.py`` out of scope and the new flight
-        kwargs take effect on the next application restart (a
+        The live :class:`FlightWidget` is NOT updated here — the new
+        flight kwargs take effect on the next application restart (a
         "重启生效" label next to the mode row makes this clear to the
         user).
         """
         if mode_name not in FLIGHT_MODES:
             return
-        mode = FLIGHT_MODES[mode_name]
-        self._apply_preset(mode.theme_name)
         self._current_flight_mode = mode_name
-        self._current_flight_kwargs = dict(mode.flight_kwargs)
+        self._current_flight_kwargs = dict(FLIGHT_MODES[mode_name])

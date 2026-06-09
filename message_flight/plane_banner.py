@@ -96,41 +96,55 @@ class PlaneBanner(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         float_y = int(self._plane_offset * 6)
-
-        painter.save()
-        painter.translate(self._banner_width + 10, 15 + float_y)
-        # 根据飞行方向翻转飞机（船头始终朝向运行方向）
-        if self._facing_direction == -1:
-            painter.scale(-1, 1)
-            painter.translate(-80, 0)  # 补偿翻转后的位置偏移
-        # z-order: thruster (back) → fuselage (middle) → wings (front)
-        self._draw_thruster(painter)
-        self._draw_fuselage(painter)
-        self._draw_wings(painter)
-        painter.restore()
-
         banner_y = 20 + float_y
+
+        if self._facing_direction == 1:
+            # 左→右：横幅在左，飞机在右
+            self._draw_banner(painter, 0, banner_y, tail_on_right=True)
+            self._draw_plane(painter, self._banner_width + 10, 15 + float_y, facing=1)
+        else:
+            # 右→左：飞机在左，横幅在右
+            plane_w = 70  # 飞机绘制区域约 70px 宽
+            gap = 10
+            self._draw_plane(painter, 0, 15 + float_y, facing=-1)
+            self._draw_banner(painter, plane_w + gap, banner_y, tail_on_right=False)
+
+        painter.end()
+
+    def _draw_banner(self, painter: QPainter, bx: int, by: int, tail_on_right: bool):
+        """Draw the notification banner at (bx, by).
+
+        Args:
+            tail_on_right: True = tail on right edge (plane on right);
+                           False = tail on left edge (plane on left).
+        """
         path = QPainterPath()
         rect_w = self._banner_width
         rect_h = self._banner_height
         radius = 12
 
-        path.moveTo(radius, banner_y)
-        path.lineTo(rect_w - radius, banner_y)
-        path.arcTo(rect_w - radius * 2, banner_y, radius * 2, radius * 2, 90, -90)
-        path.lineTo(rect_w, banner_y + rect_h - radius)
-        path.arcTo(rect_w - radius * 2, banner_y + rect_h - radius * 2, radius * 2, radius * 2, 0, -90)
-        path.lineTo(radius, banner_y + rect_h)
-        path.arcTo(0, banner_y + rect_h - radius * 2, radius * 2, radius * 2, -90, -90)
-        path.lineTo(0, banner_y + radius)
-        path.arcTo(0, banner_y, radius * 2, radius * 2, 180, -90)
+        path.moveTo(bx + radius, by)
+        path.lineTo(bx + rect_w - radius, by)
+        path.arcTo(bx + rect_w - radius * 2, by, radius * 2, radius * 2, 90, -90)
+        path.lineTo(bx + rect_w, by + rect_h - radius)
+        path.arcTo(bx + rect_w - radius * 2, by + rect_h - radius * 2, radius * 2, radius * 2, 0, -90)
+        path.lineTo(bx + radius, by + rect_h)
+        path.arcTo(bx, by + rect_h - radius * 2, radius * 2, radius * 2, -90, -90)
+        path.lineTo(bx, by + radius)
+        path.arcTo(bx, by, radius * 2, radius * 2, 180, -90)
         path.closeSubpath()
 
-        tail_x = rect_w
-        tail_y = banner_y + rect_h // 2
-        path.moveTo(tail_x, tail_y - 6)
-        path.lineTo(tail_x + 10, tail_y)
-        path.lineTo(tail_x, tail_y + 6)
+        tail_y = by + rect_h // 2
+        if tail_on_right:
+            tail_x = bx + rect_w
+            path.moveTo(tail_x, tail_y - 6)
+            path.lineTo(tail_x + 10, tail_y)
+            path.lineTo(tail_x, tail_y + 6)
+        else:
+            tail_x = bx
+            path.moveTo(tail_x, tail_y - 6)
+            path.lineTo(tail_x - 10, tail_y)
+            path.lineTo(tail_x, tail_y + 6)
         path.closeSubpath()
 
         painter.fillPath(path, self._banner_color)
@@ -139,9 +153,24 @@ class PlaneBanner(QWidget):
         font = QFont("Microsoft YaHei", 12, QFont.Weight.Bold)
         painter.setFont(font)
         fm = QFontMetrics(font)
-        text_y = banner_y + (rect_h + fm.ascent() - fm.descent()) // 2
-        painter.drawText(20, text_y, self._text)
-        painter.end()
+        text_y = by + (rect_h + fm.ascent() - fm.descent()) // 2
+        painter.drawText(bx + 20, text_y, self._text)
+
+    def _draw_plane(self, painter: QPainter, px: int, py: int, facing: int):
+        """Draw the plane at (px, py).
+
+        Args:
+            facing: 1 = head points right; -1 = head points left.
+        """
+        painter.save()
+        painter.translate(px, py)
+        if facing == -1:
+            painter.scale(-1, 1)
+            painter.translate(-70, 0)
+        self._draw_thruster(painter)
+        self._draw_fuselage(painter)
+        self._draw_wings(painter)
+        painter.restore()
 
     def _draw_fuselage(self, painter: QPainter):
         """Draw fuselage body, nose, white dots, and pink decor."""

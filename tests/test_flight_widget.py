@@ -194,3 +194,17 @@ def test_flight_widget_accepts_all_flight_mode_kwargs(qapp):
         # The widget's PlaneBanner must have received the mode's palette
         assert widget.plane._plane_color.name().lower() == mode.colors["plane_color"].lower(), name
         del widget
+
+
+def test_set_flight_kwargs_hot_updates_without_crash(qapp):
+    """set_flight_kwargs must update internal params and restart animation."""
+    widget = _make_widget(qapp)
+    assert widget._fly_bounce is False
+    assert widget._fly_loop_count == -1
+
+    widget.set_flight_kwargs(fly_bounce=True, fly_loop_count=3, fly_duration_ms=3000)
+    assert widget._fly_bounce is True
+    assert widget._fly_loop_count == 3
+    assert widget._fly_duration_ms == 3000
+    assert widget._fly_count == 0  # reset
+    assert widget._fly_direction == 1  # reset

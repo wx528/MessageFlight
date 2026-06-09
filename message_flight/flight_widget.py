@@ -162,6 +162,37 @@ class FlightWidget(QWidget):
         if event.key() == Qt.Key.Key_Escape:
             self.hide()
 
+    def set_flight_kwargs(self, **kwargs) -> None:
+        """热更新飞行参数，无需重启应用。"""
+        if "fly_loop_count" in kwargs:
+            self._fly_loop_count = int(kwargs["fly_loop_count"])
+        if "fly_bounce" in kwargs:
+            self._fly_bounce = bool(kwargs["fly_bounce"])
+        if "fly_duration_ms" in kwargs:
+            self._fly_duration_ms = int(kwargs["fly_duration_ms"])
+        if "float_duration_ms" in kwargs:
+            self._float_duration_ms = int(kwargs["float_duration_ms"])
+        if "notification_interval_ms" in kwargs:
+            self._notification_interval_ms = int(kwargs["notification_interval_ms"])
+            self.timer.setInterval(self._notification_interval_ms)
+        if "vertical_jitter" in kwargs:
+            self._vertical_jitter = int(kwargs["vertical_jitter"])
+        if "re_flight_y_ratio" in kwargs:
+            self._re_flight_y_ratio = float(kwargs["re_flight_y_ratio"])
+        if "re_flight_jitter" in kwargs:
+            self._re_flight_jitter = int(kwargs["re_flight_jitter"])
+
+        # 重置飞行状态，用新参数重新开始
+        self._fly_count = 0
+        self._fly_direction = 1
+        self._fly_stopped = False
+        if hasattr(self, "fly_anim"):
+            self.fly_anim.stop()
+        if hasattr(self, "float_anim"):
+            self.float_anim.stop()
+        self._setup_float_animation()
+        self._setup_fly_animation()
+
     def set_paused(self, paused: bool):
         self._paused = paused
         if paused:

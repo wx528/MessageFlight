@@ -7,6 +7,8 @@ a = Analysis(
     datas=[],
     hiddenimports=[
         'winsdk',
+        'win32com.client',
+        'pythoncom',
         'message_flight',
         'message_flight.autostart',
         'message_flight.demo_notifications',
@@ -14,6 +16,9 @@ a = Analysis(
         'message_flight.plane_banner',
         'message_flight.flight_widget',
         'message_flight.tray_app',
+        'message_flight.tts',
+        'message_flight.config',
+        'message_flight.settings_dialog',
     ],
     hookspath=[],
     hooksconfig={},

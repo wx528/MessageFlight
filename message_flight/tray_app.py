@@ -181,6 +181,7 @@ class TrayApplication:
             new_cfg = dlg.get_result()
             save_config(new_cfg)
             self.widget.plane.update_colors(**new_cfg.colors)
+            self.widget.set_flight_kwargs(**new_cfg.flight_kwargs)
 
     def _quit(self):
         if self.notifier:

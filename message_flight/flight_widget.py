@@ -153,6 +153,9 @@ class FlightWidget(QWidget):
                     self.fly_anim.setStartValue(QPoint(new_x, -self.plane.height()))
                     self.fly_anim.setEndValue(QPoint(new_x, self.screen_h + 50))
                     self.fly_anim.start()
+                else:
+                    self.fly_anim.stop()
+                    self._fly_stopped = True
                 return
 
             if self._pong_direction == 1:  # was going down
@@ -206,6 +209,8 @@ class FlightWidget(QWidget):
 
     def set_flight_kwargs(self, **kwargs) -> None:
         """热更新飞行参数，无需重启应用。"""
+        if "fly_path" in kwargs:
+            self._fly_path = kwargs["fly_path"]
         if "fly_loop_count" in kwargs:
             self._fly_loop_count = int(kwargs["fly_loop_count"])
         if "fly_bounce" in kwargs:

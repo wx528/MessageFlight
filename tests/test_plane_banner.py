@@ -2,8 +2,6 @@
 import inspect
 from unittest.mock import MagicMock, patch
 
-from PyQt6.QtGui import QColor
-
 from message_flight.plane_banner import PlaneBanner
 
 
@@ -99,4 +97,21 @@ def test_qcolor_normalization():
         banner = PlaneBanner(plane_color="#ABCDEF")
     # QColor 标准化为小写
     assert banner._plane_color.name().lower() == "#abcdef"
+
+
+def test_all_color_attributes_initialized():
+    """All 9 color params should be stored as valid QColor instances."""
+    from PyQt6.QtGui import QColor
+    with patch("PyQt6.QtWidgets.QWidget.__init__"), \
+         patch.object(PlaneBanner, "setFixedSize"):
+        banner = PlaneBanner()
+    color_attrs = [
+        "plane", "wing", "accent", "decor", "banner", "text",
+        "thruster_outer", "thruster_middle", "thruster_inner",
+    ]
+    for name in color_attrs:
+        attr = f"_{name}_color"
+        value = getattr(banner, attr)
+        assert isinstance(value, QColor), f"{attr} is not a QColor"
+        assert value.isValid(), f"{attr} is not a valid color"
 

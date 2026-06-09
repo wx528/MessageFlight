@@ -158,8 +158,3 @@ class PlaneBanner(QWidget):
         inner_w = int(5 * intensity)
         painter.setBrush(self._thruster_inner_color)
         painter.drawEllipse(5, 27, inner_w, 4)
-
-    def _draw_plane(self, painter: QPainter):
-        self._draw_thruster(painter)
-        self._draw_fuselage(painter)
-        self._draw_wings(painter)

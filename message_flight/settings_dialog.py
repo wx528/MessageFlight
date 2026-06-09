@@ -1,7 +1,6 @@
 """Modal settings dialog for editing the 9-color plane/banner palette."""
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QDialog,

@@ -92,7 +92,7 @@ def test_save_config_uses_messageflight_org_and_app(isolated_settings, tmp_path)
         assert key in contents, f"missing key {key} in persisted INI"
 
 
-def test_load_config_handles_corrupt_ini_gracefully(isolated_settings, tmp_path):
+def test_load_config_returns_defaults_when_ini_is_malformed(isolated_settings, tmp_path):
     """A garbage INI file should not raise; load_config returns defaults."""
     ini_dir = tmp_path / "qsettings"
     (ini_dir / "MessageFlight").mkdir(parents=True, exist_ok=True)

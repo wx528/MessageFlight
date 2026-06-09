@@ -279,4 +279,5 @@ class FlightWidget(QWidget):
         self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
         self.fly_anim.start()
         self.timer.stop()
-        QTimer.singleShot(15000, self.timer.start)
+        # 不再自动重启 timer（演示轮播已禁用）
+        # QTimer.singleShot(15000, self.timer.start)

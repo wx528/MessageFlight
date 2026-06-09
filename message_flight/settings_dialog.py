@@ -79,7 +79,6 @@ class SettingsDialog(QDialog):
             )
             self._flight_mode_buttons[mode_name] = btn
             flight_mode_row.addWidget(btn)
-        flight_mode_row.addWidget(QLabel("(重启生效)"))
         flight_mode_row.addStretch(1)
         root.addLayout(flight_mode_row)
 

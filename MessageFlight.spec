@@ -14,6 +14,12 @@ a = Analysis(
         'message_flight.plane_banner',
         'message_flight.flight_widget',
         'message_flight.tray_app',
+        # PyQt6 modules — explicitly listed because on Windows CI runners
+        # the dynamic analysis sometimes fails to collect sub-package imports
+        'PyQt6',
+        'PyQt6.QtCore',
+        'PyQt6.QtGui',
+        'PyQt6.QtWidgets',
     ],
     hookspath=[],
     hooksconfig={},

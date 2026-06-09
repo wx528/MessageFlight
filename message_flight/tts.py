@@ -121,7 +121,13 @@ class MiniMaxReader(TTSReader, QObject):
 
         self._network.finished.connect(self._on_reply_finished)
         self._player.playbackStateChanged.connect(self._on_state_changed)
+        self._player.errorOccurred.connect(self._on_player_error)
         logger.info("MiniMaxReader: initialized with voice_id=%s", voice_id)
+
+    def _on_player_error(self, error, error_string):
+        """Handle QMediaPlayer errors."""
+        logger.error("MiniMaxReader QMediaPlayer error: %s (code=%s)", error_string, error)
+        self.error_occurred.emit(f"Media player error: {error_string}")
 
     def _speak_impl(self, text: str) -> None:
         if not self._api_key:
@@ -218,8 +224,17 @@ class MiniMaxReader(TTSReader, QObject):
             os.write(fd, self._buffer.data())
         finally:
             os.close(fd)
-        logger.debug("MiniMaxReader._on_reply_finished: saved audio to %s", path)
+        logger.info("MiniMaxReader._on_reply_finished: saved audio to %s (%d bytes)", path, len(audio_bytes))
+        
+        # Debug: verify file exists and has content
+        if os.path.exists(path):
+            file_size = os.path.getsize(path)
+            logger.info("MiniMaxReader._on_reply_finished: file exists, size=%d bytes", file_size)
+        else:
+            logger.error("MiniMaxReader._on_reply_finished: file does not exist!")
+        
         self._player.setSource(QUrl.fromLocalFile(path))
+        logger.info("MiniMaxReader._on_reply_finished: media source set, calling play()")
         self._player.play()
         reply.deleteLater()
 

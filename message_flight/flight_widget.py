@@ -9,7 +9,15 @@ from message_flight.plane_banner import PlaneBanner
 
 
 class FlightWidget(QWidget):
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        float_duration_ms: int = 1500,
+        fly_duration_ms: int = 8000,
+        initial_y_ratio: float = 0.25,
+        vertical_jitter: int = 100,
+        notification_interval_ms: int = 5000,
+    ):
         super().__init__()
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -27,7 +35,13 @@ class FlightWidget(QWidget):
         self.plane = PlaneBanner(self)
         self.plane.set_text(NOTIFICATIONS[0])
 
-        start_y = self.screen_h // 4 + random.randint(-100, 100)
+        self._float_duration_ms = int(float_duration_ms)
+        self._fly_duration_ms = int(fly_duration_ms)
+        self._initial_y_ratio = float(initial_y_ratio)
+        self._vertical_jitter = int(vertical_jitter)
+        self._notification_interval_ms = int(notification_interval_ms)
+
+        start_y = self._compute_start_y()
         self.plane.move(-self.plane.width(), start_y)
 
         self._setup_float_animation()
@@ -36,13 +50,18 @@ class FlightWidget(QWidget):
         self.msg_index = 0
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._next_message)
-        self.timer.start(5000)
+        self.timer.start(self._notification_interval_ms)
 
         self._paused = False
 
+    def _compute_start_y(self) -> int:
+        """根据 initial_y_ratio + vertical_jitter 算 y 坐标。"""
+        base = int(self.screen_h * self._initial_y_ratio)
+        return base + random.randint(-self._vertical_jitter, self._vertical_jitter)
+
     def _setup_float_animation(self):
         self.float_anim = QPropertyAnimation(self.plane, b"plane_offset")
-        self.float_anim.setDuration(1500)
+        self.float_anim.setDuration(self._float_duration_ms)
         self.float_anim.setStartValue(0.0)
         self.float_anim.setEndValue(1.0)
         self.float_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
@@ -50,10 +69,10 @@ class FlightWidget(QWidget):
         self.float_anim.start()
 
     def _setup_fly_animation(self):
-        start_y = self.screen_h // 4 + random.randint(-80, 80)
+        start_y = self._compute_start_y()
         end_y = start_y + random.randint(-30, 30)
         self.fly_anim = QPropertyAnimation(self.plane, b"pos")
-        self.fly_anim.setDuration(8000)
+        self.fly_anim.setDuration(self._fly_duration_ms)
         self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
         self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
         self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
@@ -61,8 +80,8 @@ class FlightWidget(QWidget):
         self.fly_anim.start()
 
     def _on_fly_finished(self):
-        start_y = self.screen_h // 5 + random.randint(-120, 150)
-        end_y = start_y + random.randint(-40, 40)
+        start_y = self._compute_start_y() + self.screen_h // 20
+        end_y = start_y + random.randint(-30, 30)
         self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
         self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
         self.fly_anim.start()
@@ -92,13 +111,11 @@ class FlightWidget(QWidget):
     def show_notification(self, text: str):
         """显示一条真实通知，并重置飞行动画让飞机立刻从左侧飞出"""
         self.plane.set_text(text)
-        # 重置位置到左侧外，确保用户能立刻看到
-        start_y = self.screen_h // 5 + random.randint(-100, 100)
-        end_y = start_y + random.randint(-40, 40)
+        start_y = self._compute_start_y()
+        end_y = start_y + random.randint(-30, 30)
         self.fly_anim.stop()
         self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
         self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
         self.fly_anim.start()
-        # 暂停假数据轮播 15 秒，让用户看清真实通知
         self.timer.stop()
         QTimer.singleShot(15000, self.timer.start)

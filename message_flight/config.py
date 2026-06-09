@@ -123,7 +123,7 @@ FLIGHT_MODES: dict[str, dict[str, Any]] = {
         "fly_bounce": True,
         "fly_loop_count": -1,
         "fly_path": "horizontal",
-        "fly_duration_ms": 3000,
+        "fly_duration_ms": 5000,
         "float_duration_ms": 1500,
         "vertical_jitter": 200,
         "notification_interval_ms": 2000,

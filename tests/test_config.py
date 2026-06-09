@@ -1,4 +1,4 @@
-"""Tests for the persistent AppConfig (Task 05)."""
+"""Tests for the persistent AppConfig (Task 05) + FlightModeConfig (Task 06)."""
 import os
 import sys
 import tempfile
@@ -12,6 +12,8 @@ from PyQt6.QtCore import QSettings
 from message_flight.config import (
     APP,
     DEFAULT_THEME,
+    FLIGHT_MODE_NAMES,
+    FLIGHT_MODES,
     ORG,
     SETTINGS_KEY,
     THEMES,
@@ -105,3 +107,37 @@ def test_load_config_returns_defaults_when_ini_is_malformed(isolated_settings, t
     assert cfg.theme_name == DEFAULT_THEME
     assert isinstance(cfg.colors, dict)
     assert cfg.colors.get("plane_color") == THEMES[DEFAULT_THEME]["plane_color"]
+
+
+def test_flight_modes_have_three_entries():
+    """FLIGHT_MODES must contain exactly 3 named presets: 低调 / 标准 / 胡闹."""
+    assert set(FLIGHT_MODES.keys()) == {"低调", "标准", "胡闹"}
+    assert len(FLIGHT_MODES) == 3
+    # The user-facing order tuple must list the 3 names in display order
+    assert FLIGHT_MODE_NAMES == ("低调", "标准", "胡闹")
+    # Each mode must have a non-empty colors dict and a non-empty flight_kwargs dict
+    for name, mode in FLIGHT_MODES.items():
+        assert isinstance(mode.colors, dict) and len(mode.colors) == 9, name
+        assert isinstance(mode.flight_kwargs, dict) and len(mode.flight_kwargs) >= 1, name
+
+
+def test_save_load_flight_kwargs_round_trip(isolated_settings):
+    """Saving a config with custom flight_kwargs must round-trip through load_config."""
+    cyber = FLIGHT_MODES["胡闹"]
+    cfg = AppConfig(
+        theme_name=cyber.theme_name,
+        colors=dict(cyber.colors),
+        flight_mode="胡闹",
+        flight_kwargs=dict(cyber.flight_kwargs),
+    )
+    save_config(cfg)
+
+    loaded = load_config()
+    assert loaded.flight_mode == "胡闹"
+    assert loaded.flight_kwargs == cyber.flight_kwargs
+    # Specifically spot-check a few key values to guard against a silent
+    # type-coercion bug (e.g. bool -> int) in the JSON round-trip
+    assert loaded.flight_kwargs["fly_bounce"] is True
+    assert loaded.flight_kwargs["fly_loop_count"] == -1
+    assert loaded.flight_kwargs["fly_duration_ms"] == 3000
+    assert loaded.flight_kwargs["notification_interval_ms"] == 2000

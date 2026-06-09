@@ -11,6 +11,7 @@ Let Windows notifications fly across your screen like a little plane 🎈
 | | | |
 |:---:|:---:|:---:|
 | ![Plane flying above a game window](screenshots/screen_top_on_game01.png) | ![Plane flying above a game window](screenshots/screen_top_on_game02.png) | ![Plane flying across the desktop](screenshots/screen_top_on_screen.png) |
+| ![Plane in cyber preset (v0.1.6)](screenshots/screen_other_color.png) | | |
 
 ## Features
 

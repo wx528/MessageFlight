@@ -11,6 +11,7 @@
 | | | |
 |:---:|:---:|:---:|
 | ![小飞机在游戏窗口上方飞过](screenshots/screen_top_on_game01.png) | ![小飞机在游戏窗口上方飞过](screenshots/screen_top_on_game02.png) | ![小飞机飞过桌面](screenshots/screen_top_on_screen.png) |
+| ![小飞机配色：未来赛博（v0.1.6）](screenshots/screen_other_color.png) | | |
 
 ## 功能特性
 

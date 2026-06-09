@@ -35,7 +35,9 @@ docs/tasks/*.*
 !docs/tasks/.gitkeep
 
 # superpowers workflow artifacts
+# (specs/ is committed; everything else under superpowers/ is a local skill cache)
 docs/superpowers/**/*.md
+!docs/superpowers/specs/
 !docs/superpowers/.gitkeep
 !docs/superpowers/**/.gitkeep
 

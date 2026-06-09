@@ -114,6 +114,13 @@ class SettingsDialog(QDialog):
 
         root.addLayout(form)
 
+        # Online TTS API key (greyed out — v0.1.9)
+        self._api_key_label = QLabel("在线 TTS API 密钥:")
+        self._api_key_edit = QLineEdit(initial.online_tts_api_key)
+        self._api_key_edit.setPlaceholderText("v0.1.9 支持")
+        self._api_key_edit.setEnabled(False)
+        form.addRow(self._api_key_label, self._api_key_edit)
+
         # OK / Cancel
         self._button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
@@ -149,6 +156,7 @@ class SettingsDialog(QDialog):
             colors=colors,
             flight_mode=self._current_flight_mode,
             flight_kwargs=dict(self._current_flight_kwargs),
+            online_tts_api_key=self._api_key_edit.text(),
         )
 
     # ------------------------------------------------------------------

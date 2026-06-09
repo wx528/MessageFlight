@@ -163,7 +163,7 @@ class TrayApplication:
         self.widget.show_notification(text)
 
     def _open_settings(self):
-        """Open the color-scheme settings dialog and apply the result on OK."""
+        """Open the settings dialog (color scheme + flight mode). On accept, save config and apply changes."""
         dlg = SettingsDialog(load_config(), self.menu)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             new_cfg = dlg.get_result()

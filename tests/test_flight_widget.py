@@ -25,14 +25,12 @@ def _make_widget(qapp, **kwargs):
     provided by the qapp fixture. We still mock the animation setup methods
     because they need a real event loop running.
     """
+    from message_flight.flight_widget import FlightWidget
     fake_geometry = type("G", (), {"width": lambda self: 1920, "height": lambda self: 1080})()
     fake_screen = type("S", (), {"geometry": lambda self: fake_geometry})()
     with patch("PyQt6.QtWidgets.QApplication.primaryScreen", return_value=fake_screen), \
-         patch.object(__import__("message_flight.flight_widget", fromlist=["FlightWidget"]).FlightWidget,
-                      "_setup_float_animation"), \
-         patch.object(__import__("message_flight.flight_widget", fromlist=["FlightWidget"]).FlightWidget,
-                      "_setup_fly_animation"):
-        from message_flight.flight_widget import FlightWidget
+         patch.object(FlightWidget, "_setup_float_animation"), \
+         patch.object(FlightWidget, "_setup_fly_animation"):
         return FlightWidget(**kwargs)
 
 
@@ -195,3 +193,4 @@ def test_flight_widget_accepts_all_flight_mode_kwargs(qapp):
         assert widget._notification_interval_ms == mode.flight_kwargs["notification_interval_ms"], name
         # The widget's PlaneBanner must have received the mode's palette
         assert widget.plane._plane_color.name().lower() == mode.colors["plane_color"].lower(), name
+        del widget

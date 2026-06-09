@@ -122,7 +122,13 @@ def test_flight_modes_have_three_entries():
 
 
 def test_save_load_flight_kwargs_round_trip(isolated_settings):
-    """Saving a config with custom flight_kwargs must round-trip through load_config."""
+    """Saving a config with custom flight_kwargs must round-trip through load_config.
+
+    To guard against a no-op json.dumps/loads implementation, we mutate one
+    value before saving and assert the *modified* value is what we read back
+    (not the original preset default). We also inspect the raw QSettings
+    string to confirm it is real JSON, not a Python repr().
+    """
     cyber = FLIGHT_MODES["胡闹"]
     cfg = AppConfig(
         theme_name=cyber.theme_name,
@@ -130,14 +136,29 @@ def test_save_load_flight_kwargs_round_trip(isolated_settings):
         flight_mode="胡闹",
         flight_kwargs=dict(cyber.flight_kwargs),
     )
+    # Mutate one int and one bool to prove values are actually serialized,
+    # not just round-tripped by reference
+    cfg.flight_kwargs["fly_duration_ms"] = 4321
+    cfg.flight_kwargs["fly_bounce"] = True
     save_config(cfg)
 
     loaded = load_config()
     assert loaded.flight_mode == "胡闹"
-    assert loaded.flight_kwargs == cyber.flight_kwargs
+    assert loaded.flight_kwargs == cfg.flight_kwargs
     # Specifically spot-check a few key values to guard against a silent
     # type-coercion bug (e.g. bool -> int) in the JSON round-trip
     assert loaded.flight_kwargs["fly_bounce"] is True
     assert loaded.flight_kwargs["fly_loop_count"] == -1
-    assert loaded.flight_kwargs["fly_duration_ms"] == 3000
+    assert loaded.flight_kwargs["fly_duration_ms"] == 4321
     assert loaded.flight_kwargs["notification_interval_ms"] == 2000
+
+    # Inspect the raw QSettings string to prove the value was actually
+    # JSON-serialized (not Python repr'd, not no-op'd)
+    raw = QSettings(
+        QSettings.Format.IniFormat, QSettings.Scope.UserScope, ORG, APP
+    ).value("flight_kwargs_json")
+    assert isinstance(raw, str) and raw
+    assert "fly_duration_ms" in raw
+    assert ": 4321" in raw or ":4321" in raw, f"expected JSON, got: {raw!r}"
+    # A Python repr would use single quotes; JSON uses double quotes
+    assert '"fly_bounce"' in raw, f"expected JSON double-quoted key, got: {raw!r}"

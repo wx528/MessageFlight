@@ -146,6 +146,6 @@ def test_update_colors_does_not_set_text_color_on_preset_params():
     banner.update = MagicMock()
     banner.update_colors(text_color="#AABBCC")
     assert banner._text_color.name().lower() == "#aabbcc"
-    # AirplaneParameters has no text_color field; update_colors must not
-    # create a phantom attribute that would not survive asdict().
-    assert "text_color" not in asdict(banner._params)
+    # AirplaneParameters now has text_color field; update_colors should
+    # update it like any other color parameter.
+    assert banner._params.text_color == "#AABBCC"

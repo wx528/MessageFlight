@@ -19,6 +19,9 @@ class AirplaneParameters:
     thruster_middle_color: str = "#FF4500"
     thruster_inner_color: str = "#FFFF00"
     body_scale: float = 1.0
+    banner_color: str = "#FFB6C1"
+    text_color: str = "#FFFFFF"
+    rotation: float = 0.0
     banner_attach_x: int = 0
     banner_attach_y: int = 30
 
@@ -46,6 +49,7 @@ class AirplanePreset(PlanePreset):
             ParamDef("thruster_middle_color", "推进器中焰", "color", "#FF4500"),
             ParamDef("thruster_inner_color", "推进器内焰", "color", "#FFFF00"),
             ParamDef("body_scale", "机身缩放", "float", 1.0, 0.5, 2.0, 0.1),
+            ParamDef("rotation", "旋转角度", "float", 0.0, -45.0, 45.0, 1.0),
             ParamDef("banner_attach_x", "横幅挂载X", "int", 0, -50, 100),
             ParamDef("banner_attach_y", "横幅挂载Y", "int", 30, -50, 100),
         ]

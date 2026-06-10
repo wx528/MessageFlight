@@ -112,6 +112,8 @@ class PlaneBanner(QWidget):
                 setattr(self._params, attr, value)
         if text_color is not None:
             self._text_color = QColor(text_color)
+            if hasattr(self._params, "text_color"):
+                self._params.text_color = text_color
         self.update()
 
     def apply_preset(self, preset, params) -> None:
@@ -220,5 +222,11 @@ class PlaneBanner(QWidget):
         if facing == -1:
             painter.scale(-1, 1)
             painter.translate(-70, 0)
+        # 应用旋转（围绕飞船中心，约 35,40）
+        rotation = getattr(self._params, 'rotation', 0.0)
+        if rotation != 0.0:
+            painter.translate(35, 40)
+            painter.rotate(rotation)
+            painter.translate(-35, -40)
         self._preset.draw(painter, self._params)
         painter.restore()

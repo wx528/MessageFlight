@@ -22,6 +22,7 @@ class RocketParameters:
     flame_intensity: float = 1.0
     banner_color: str = "#FF6347"
     text_color: str = "#FFFFFF"
+    rotation: float = 0.0
     banner_attach_x: int = -12
     banner_attach_y: int = 0
 
@@ -83,6 +84,7 @@ class RocketPreset(PlanePreset):
             ParamDef("flame_color", "火焰颜色", "color", "#FFA500"),
             ParamDef("flame_intensity", "火焰强度", "float", 1.0, 0.0, 2.0, 0.1),
             ParamDef("banner_color", "横幅颜色", "color", "#FF6347"),
+            ParamDef("rotation", "旋转角度", "float", 0.0, -45.0, 45.0, 1.0),
             ParamDef("text_color", "文字颜色", "color", "#FFFFFF"),
             ParamDef("banner_attach_x", "横幅挂载X", "int", -12, -50, 100),
             ParamDef("banner_attach_y", "横幅挂载Y", "int", 0, -50, 100),

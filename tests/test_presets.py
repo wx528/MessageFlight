@@ -132,3 +132,26 @@ def test_ufo_draw_does_not_crash():
     painter = MagicMock()
     p.draw(painter, p.get_default_params())
     assert painter.drawEllipse.call_count >= 1
+
+
+from message_flight.plane_presets.bird import BirdPreset, BirdParameters
+
+
+def test_bird_preset_has_name_and_icon():
+    p = BirdPreset()
+    assert p.name == "小鸟"
+    assert p.icon == "🐦"
+
+
+def test_bird_preset_default_params():
+    p = BirdPreset()
+    params = p.get_default_params()
+    assert isinstance(params, BirdParameters)
+
+
+def test_bird_draw_does_not_crash():
+    from unittest.mock import MagicMock
+    p = BirdPreset()
+    painter = MagicMock()
+    p.draw(painter, p.get_default_params())
+    assert painter.drawPath.call_count >= 1

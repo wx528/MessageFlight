@@ -184,5 +184,5 @@ class PlaneBanner(QWidget):
         if facing == -1:
             painter.scale(-1, 1)
             painter.translate(-70, 0)
-        self._preset.draw(painter, self._params, facing)
+        self._preset.draw(painter, self._params, facing=1)
         painter.restore()

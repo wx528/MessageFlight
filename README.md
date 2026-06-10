@@ -2,30 +2,30 @@
 
 [![CI](https://github.com/wx528/MessageFlight/actions/workflows/ci.yml/badge.svg)](https://github.com/wx528/MessageFlight/actions/workflows/ci.yml)
 
-[English](README.en.md)
+[中文](README.zh.md)
 
-让 Windows 通知像小飞机一样飞过你的屏幕 🎈
+Let Windows notifications fly across your screen like a little plane 🎈
 
-## 截图
+## Screenshots
 
 | | | |
 |:---:|:---:|:---:|
-| ![小飞机在游戏窗口上方飞过](screenshots/screen_top_on_game01.png) | ![小飞机在游戏窗口上方飞过](screenshots/screen_top_on_game02.png) | ![小飞机飞过桌面](screenshots/screen_top_on_screen.png) |
-| ![小飞机配色：未来赛博（v0.1.6）](screenshots/screen_other_color.png) | | |
+| ![Plane flying above a game window](screenshots/screen_top_on_game01.png) | ![Plane flying above a game window](screenshots/screen_top_on_game02.png) | ![Plane flying across the desktop](screenshots/screen_top_on_screen.png) |
+| ![Plane in cyber preset (v0.1.6)](screenshots/screen_other_color.png) | | |
 
-## 功能特性
+## Features
 
-- 🛩️ **小飞机动画**：从屏幕左侧飞到右侧，附带浮动效果
-- 📢 **真实系统通知**：监听 Windows 通知中心（基于 `winsdk`）
-- 🎨 **托盘菜单**：支持暂停 / 开机自启 / 退出
-- 🔍 **权限提示**：显示通知监听权限状态
-- 🧪 **演示回退**：未安装 `winsdk` 时回退为内置演示通知
+- 🛩️ **Animated plane**: flies from the left edge to the right with a gentle float effect
+- 📢 **Real system notifications**: listens to the Windows notification center (via `winsdk`)
+- 🎨 **Tray menu**: pause, autostart, and quit
+- 🔍 **Permission status**: shows notification listener permission state
+- 🧪 **Demo fallback**: falls back to built-in demo notifications when `winsdk` is unavailable
 
-## 快速开始
+## Quick Start
 
-要求 Windows 10/11 + Python 3.8+。
+Requires Windows 10/11 and Python 3.8+.
 
-使用 `pip`：
+Using `pip`:
 
 ```bash
 git clone https://github.com/wx528/MessageFlight.git
@@ -38,9 +38,9 @@ pip install .
 python message_flight.py
 ```
 
-不需要时可执行 `deactivate` 退出虚拟环境。
+Run `deactivate` to leave the virtual environment when you're done.
 
-使用 [`uv`](https://docs.astral.sh/uv/)（更快）：
+Using [`uv`](https://docs.astral.sh/uv/) (faster):
 
 ```bash
 git clone https://github.com/wx528/MessageFlight.git

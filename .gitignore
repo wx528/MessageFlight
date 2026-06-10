@@ -34,6 +34,9 @@ Desktop.ini
 docs/tasks/*.*
 !docs/tasks/.gitkeep
 
+# advice
+docs/advice/
+
 # superpowers workflow artifacts
 # (specs/ is committed; everything else under superpowers/ is a local skill cache)
 docs/superpowers/**/*.md

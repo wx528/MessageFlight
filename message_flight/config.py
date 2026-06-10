@@ -34,7 +34,13 @@ VALID_TTS_PROVIDERS = ("sapi", "minimax")
 # User-facing flight paths.  ``horizontal`` is the classic left-to-right
 # sweep; ``vertical_pong`` enters from the top and bounces off the top
 # and bottom edges while drifting right.
-VALID_FLY_PATHS: tuple[str, ...] = ("horizontal", "vertical_pong")
+VALID_FLY_PATHS: tuple[str, ...] = (
+    "horizontal",
+    "vertical_pong",
+    "zigzag_top_down",
+    "zigzag_bottom_up",
+    "around",
+)
 
 THEMES: dict[str, dict[str, str]] = {
     "default": {

@@ -7,7 +7,13 @@ from PyQt6.QtWidgets import QApplication, QWidget
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.plane_banner import PlaneBanner
 
-_VALID_FLY_PATHS = ("horizontal", "vertical_pong")
+_VALID_FLY_PATHS = (
+    "horizontal",
+    "vertical_pong",
+    "zigzag_top_down",
+    "zigzag_bottom_up",
+    "around",
+)
 
 
 class FlightWidget(QWidget):
@@ -35,7 +41,7 @@ class FlightWidget(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        # Note: WA_TransparentForMouseEvents removed to allow plane interaction
 
         screen = QApplication.primaryScreen().geometry()
         self.screen_w = screen.width()
@@ -73,6 +79,11 @@ class FlightWidget(QWidget):
         self._pong_direction = 1  # 1 = down, -1 = up
         self._fly_stopped = False
 
+        # zigzag / around 状态
+        self._zigzag_row = 0
+        self._zigzag_direction = 1  # 1 = left→right, -1 = right→left
+        self._around_step = 0
+
         start_y = self._compute_start_y()
         self.plane.move(-self.plane.width(), start_y)
 
@@ -104,16 +115,16 @@ class FlightWidget(QWidget):
 
     def _setup_fly_animation(self):
         if self._fly_path == "vertical_pong":
-            start_x = int(self.screen_w * self._re_flight_x_ratio) + random.randint(-100, 100)
-            start_y = -self.plane.height()
-            end_y = self.screen_h + 50
-            self.fly_anim = QPropertyAnimation(self.plane, b"pos")
-            self.fly_anim.setDuration(self._fly_duration_ms)
-            self.fly_anim.setStartValue(QPoint(start_x, start_y))
-            self.fly_anim.setEndValue(QPoint(start_x, end_y))
-            self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
-            self.fly_anim.finished.connect(self._on_fly_finished)
-            self.fly_anim.start()
+            self._setup_vertical_pong()
+            return
+        if self._fly_path == "zigzag_top_down":
+            self._setup_zigzag_top_down()
+            return
+        if self._fly_path == "zigzag_bottom_up":
+            self._setup_zigzag_bottom_up()
+            return
+        if self._fly_path == "around":
+            self._setup_around()
             return
 
         start_y = self._compute_start_y()
@@ -122,6 +133,60 @@ class FlightWidget(QWidget):
         self.fly_anim.setDuration(self._fly_duration_ms)
         self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
         self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
+        self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
+        self.fly_anim.finished.connect(self._on_fly_finished)
+        self.fly_anim.start()
+
+    def _setup_vertical_pong(self):
+        start_x = int(self.screen_w * self._re_flight_x_ratio) + random.randint(-100, 100)
+        start_y = -self.plane.height()
+        end_y = self.screen_h + 50
+        self.fly_anim = QPropertyAnimation(self.plane, b"pos")
+        self.fly_anim.setDuration(self._fly_duration_ms)
+        self.fly_anim.setStartValue(QPoint(start_x, start_y))
+        self.fly_anim.setEndValue(QPoint(start_x, end_y))
+        self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
+        self.fly_anim.finished.connect(self._on_fly_finished)
+        self.fly_anim.start()
+
+    def _setup_zigzag_top_down(self):
+        self._zigzag_row = 0
+        self._zigzag_direction = 1
+        row_height = max(80, self.screen_h // 4)
+        start_y = 0
+        end_y = start_y
+        duration = int(self._fly_duration_ms * 0.6)
+        self.fly_anim = QPropertyAnimation(self.plane, b"pos")
+        self.fly_anim.setDuration(duration)
+        self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
+        self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
+        self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
+        self.fly_anim.finished.connect(self._on_fly_finished)
+        self.fly_anim.start()
+
+    def _setup_zigzag_bottom_up(self):
+        self._zigzag_row = 0
+        self._zigzag_direction = 1
+        row_height = max(80, self.screen_h // 4)
+        start_y = self.screen_h - self.plane.height()
+        end_y = start_y
+        duration = int(self._fly_duration_ms * 0.6)
+        self.fly_anim = QPropertyAnimation(self.plane, b"pos")
+        self.fly_anim.setDuration(duration)
+        self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
+        self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
+        self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
+        self.fly_anim.finished.connect(self._on_fly_finished)
+        self.fly_anim.start()
+
+    def _setup_around(self):
+        self._around_step = 0
+        margin = 20
+        start_y = int(self.screen_h * self._initial_y_ratio)
+        self.fly_anim = QPropertyAnimation(self.plane, b"pos")
+        self.fly_anim.setDuration(int(self._fly_duration_ms * 0.5))
+        self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
+        self.fly_anim.setEndValue(QPoint(self.screen_w + margin, start_y))
         self.fly_anim.setEasingCurve(QEasingCurve.Type.Linear)
         self.fly_anim.finished.connect(self._on_fly_finished)
         self.fly_anim.start()
@@ -138,32 +203,13 @@ class FlightWidget(QWidget):
             return
 
         if self._fly_path == "vertical_pong":
-            current_pos = self.plane.pos()
-            new_x = current_pos.x() + random.randint(30, 80)
-
-            if new_x > self.screen_w + 100:
-                if self._fly_bounce and not self._fly_stopped:
-                    new_x = int(self.screen_w * self._re_flight_x_ratio) + random.randint(-100, 100)
-                    self.plane.move(new_x, -self.plane.height())
-                    self.fly_anim.setStartValue(QPoint(new_x, -self.plane.height()))
-                    self.fly_anim.setEndValue(QPoint(new_x, self.screen_h + 50))
-                    self.fly_anim.start()
-                else:
-                    self.fly_anim.stop()
-                    self._fly_stopped = True
-                return
-
-            if self._pong_direction == 1:  # was going down
-                self._pong_direction = -1
-                self.plane.move(new_x, self.screen_h + 50)
-                self.fly_anim.setStartValue(QPoint(new_x, self.screen_h + 50))
-                self.fly_anim.setEndValue(QPoint(new_x, -self.plane.height()))
-            else:  # was going up
-                self._pong_direction = 1
-                self.plane.move(new_x, -self.plane.height())
-                self.fly_anim.setStartValue(QPoint(new_x, -self.plane.height()))
-                self.fly_anim.setEndValue(QPoint(new_x, self.screen_h + 50))
-            self.fly_anim.start()
+            self._on_vertical_pong_finished()
+            return
+        if self._fly_path in ("zigzag_top_down", "zigzag_bottom_up"):
+            self._on_zigzag_finished()
+            return
+        if self._fly_path == "around":
+            self._on_around_finished()
             return
 
         start_y_base = int(self.screen_h * self._re_flight_y_ratio)
@@ -194,6 +240,121 @@ class FlightWidget(QWidget):
             self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
             self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
             self.fly_anim.start()
+
+    def _on_vertical_pong_finished(self):
+        current_pos = self.plane.pos()
+        new_x = current_pos.x() + random.randint(30, 80)
+
+        if new_x > self.screen_w + 100:
+            if self._fly_bounce and not self._fly_stopped:
+                new_x = int(self.screen_w * self._re_flight_x_ratio) + random.randint(-100, 100)
+                self.plane.move(new_x, -self.plane.height())
+                self.fly_anim.setStartValue(QPoint(new_x, -self.plane.height()))
+                self.fly_anim.setEndValue(QPoint(new_x, self.screen_h + 50))
+                self.fly_anim.start()
+            else:
+                self.fly_anim.stop()
+                self._fly_stopped = True
+            return
+
+        if self._pong_direction == 1:  # was going down
+            self._pong_direction = -1
+            self.plane.move(new_x, self.screen_h + 50)
+            self.fly_anim.setStartValue(QPoint(new_x, self.screen_h + 50))
+            self.fly_anim.setEndValue(QPoint(new_x, -self.plane.height()))
+        else:  # was going up
+            self._pong_direction = 1
+            self.plane.move(new_x, -self.plane.height())
+            self.fly_anim.setStartValue(QPoint(new_x, -self.plane.height()))
+            self.fly_anim.setEndValue(QPoint(new_x, self.screen_h + 50))
+        self.fly_anim.start()
+
+    def _on_zigzag_finished(self):
+        row_height = max(80, self.screen_h // 4)
+        self._zigzag_row += 1
+        self._zigzag_direction *= -1
+
+        going_down = self._fly_path == "zigzag_top_down"
+        current_y = self._zigzag_row * row_height
+        if not going_down:
+            current_y = self.screen_h - self.plane.height() - (self._zigzag_row * row_height)
+
+        if going_down and current_y > self.screen_h:
+            if self._fly_bounce:
+                self._zigzag_row = 0
+                self._zigzag_direction = 1
+                current_y = 0
+            else:
+                self.fly_anim.stop()
+                self._fly_stopped = True
+                return
+        if not going_down and current_y < -self.plane.height():
+            if self._fly_bounce:
+                self._zigzag_row = 0
+                self._zigzag_direction = 1
+                current_y = self.screen_h - self.plane.height()
+            else:
+                self.fly_anim.stop()
+                self._fly_stopped = True
+                return
+
+        duration = int(self._fly_duration_ms * 0.6)
+        if self._zigzag_direction == 1:  # left → right
+            start_x = -self.plane.width()
+            end_x = self.screen_w + 50
+            self.plane.set_facing_direction(1)
+        else:  # right → left
+            start_x = self.screen_w + 50
+            end_x = -self.plane.width()
+            self.plane.set_facing_direction(-1)
+
+        self.plane.move(start_x, current_y)
+        self.fly_anim.setDuration(duration)
+        self.fly_anim.setStartValue(QPoint(start_x, current_y))
+        self.fly_anim.setEndValue(QPoint(end_x, current_y))
+        self.fly_anim.start()
+
+    def _on_around_finished(self):
+        margin = 20
+        self._around_step = (self._around_step + 1) % 4
+
+        if self._around_step == 0:
+            # 回到起点：左中 → 右中
+            start_y = int(self.screen_h * self._initial_y_ratio)
+            self.plane.move(-self.plane.width(), start_y)
+            self.fly_anim.setDuration(int(self._fly_duration_ms * 0.5))
+            self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
+            self.fly_anim.setEndValue(QPoint(self.screen_w + margin, start_y))
+            self.plane.set_facing_direction(1)
+        elif self._around_step == 1:
+            # 右中 → 右下
+            start_x = self.screen_w + margin
+            start_y = int(self.screen_h * self._initial_y_ratio)
+            end_y = self.screen_h + margin
+            self.plane.move(start_x, start_y)
+            self.fly_anim.setDuration(int(self._fly_duration_ms * 0.3))
+            self.fly_anim.setStartValue(QPoint(start_x, start_y))
+            self.fly_anim.setEndValue(QPoint(start_x, end_y))
+            self.plane.set_facing_direction(1)
+        elif self._around_step == 2:
+            # 右下 → 左下
+            start_y = self.screen_h + margin
+            self.plane.move(self.screen_w + margin, start_y)
+            self.fly_anim.setDuration(int(self._fly_duration_ms * 0.5))
+            self.fly_anim.setStartValue(QPoint(self.screen_w + margin, start_y))
+            self.fly_anim.setEndValue(QPoint(-self.plane.width(), start_y))
+            self.plane.set_facing_direction(-1)
+        elif self._around_step == 3:
+            # 左下 → 左上
+            start_x = -self.plane.width()
+            start_y = self.screen_h + margin
+            end_y = -self.plane.height()
+            self.plane.move(start_x, start_y)
+            self.fly_anim.setDuration(int(self._fly_duration_ms * 0.3))
+            self.fly_anim.setStartValue(QPoint(start_x, start_y))
+            self.fly_anim.setEndValue(QPoint(start_x, end_y))
+            self.plane.set_facing_direction(-1)
+        self.fly_anim.start()
 
     def _next_message(self):
         self.msg_index = (self.msg_index + 1) % len(NOTIFICATIONS)
@@ -230,6 +391,10 @@ class FlightWidget(QWidget):
         # 重置飞行状态，用新参数重新开始
         self._fly_count = 0
         self._fly_direction = 1
+        self._pong_direction = 1
+        self._zigzag_row = 0
+        self._zigzag_direction = 1
+        self._around_step = 0
         self.plane.set_facing_direction(1)
         self._fly_stopped = False
         if hasattr(self, "fly_anim"):
@@ -261,6 +426,9 @@ class FlightWidget(QWidget):
         # 重置飞行状态
         self._fly_direction = 1
         self._pong_direction = 1
+        self._zigzag_row = 0
+        self._zigzag_direction = 1
+        self._around_step = 0
         self._fly_count = 0
         self._fly_stopped = False
         # 根据当前路径模式重新初始化飞行动画

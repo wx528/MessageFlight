@@ -69,18 +69,22 @@ def test_fly_path_horizontal_explicit(qapp):
     assert widget._fly_path == "horizontal"
 
 
-def test_fly_path_zigzag_raises_value_error(qapp):
-    """zigzag 路径不再支持，必须 raise ValueError"""
-    with pytest.raises(ValueError, match="fly_path must be one of"):
-        _make_widget(qapp, fly_path="zigzag_top_down")
-    with pytest.raises(ValueError, match="fly_path must be one of"):
-        _make_widget(qapp, fly_path="zigzag_bottom_up")
+def test_fly_path_zigzag_top_down_accepted(qapp):
+    """zigzag_top_down 路径必须被接受"""
+    widget = _make_widget(qapp, fly_path="zigzag_top_down")
+    assert widget._fly_path == "zigzag_top_down"
 
 
-def test_fly_path_around_raises_value_error(qapp):
-    """around 路径不再支持，必须 raise ValueError"""
-    with pytest.raises(ValueError, match="fly_path must be one of"):
-        _make_widget(qapp, fly_path="around")
+def test_fly_path_zigzag_bottom_up_accepted(qapp):
+    """zigzag_bottom_up 路径必须被接受"""
+    widget = _make_widget(qapp, fly_path="zigzag_bottom_up")
+    assert widget._fly_path == "zigzag_bottom_up"
+
+
+def test_fly_path_around_accepted(qapp):
+    """around 路径必须被接受"""
+    widget = _make_widget(qapp, fly_path="around")
+    assert widget._fly_path == "around"
 
 
 def test_fly_path_invalid_raises_value_error(qapp):
@@ -218,3 +222,47 @@ def test_set_flight_kwargs_hot_updates_without_crash(qapp):
     assert widget._fly_duration_ms == 3000
     assert widget._fly_count == 0  # reset
     assert widget._fly_direction == 1  # reset
+
+
+def test_zigzag_initial_state(qapp):
+    """zigzag_top_down 初始状态：row=0, direction=1"""
+    widget = _make_widget(qapp, fly_path="zigzag_top_down")
+    assert widget._zigzag_row == 0
+    assert widget._zigzag_direction == 1
+
+
+def test_zigzag_bottom_up_initial_state(qapp):
+    """zigzag_bottom_up 初始状态：row=0, direction=1"""
+    widget = _make_widget(qapp, fly_path="zigzag_bottom_up")
+    assert widget._zigzag_row == 0
+    assert widget._zigzag_direction == 1
+
+
+def test_around_initial_state(qapp):
+    """around 初始状态：step=0"""
+    widget = _make_widget(qapp, fly_path="around")
+    assert widget._around_step == 0
+
+
+def test_zigzag_on_finished_advances_row(qapp):
+    """zigzag_top_down _on_fly_finished 应推进 row 并反转方向"""
+    widget = _make_widget(qapp, fly_path="zigzag_top_down")
+    widget.fly_anim = MagicMock()
+    widget.screen_h = 1080
+    widget._zigzag_row = 0
+    widget._zigzag_direction = 1
+    widget._fly_count = 0
+    widget._on_fly_finished()
+    assert widget._zigzag_row == 1
+    assert widget._zigzag_direction == -1
+
+
+def test_around_on_finished_advances_step(qapp):
+    """around _on_fly_finished 应推进 step"""
+    widget = _make_widget(qapp, fly_path="around")
+    widget.fly_anim = MagicMock()
+    widget.screen_h = 1080
+    widget._around_step = 0
+    widget._fly_count = 0
+    widget._on_fly_finished()
+    assert widget._around_step == 1

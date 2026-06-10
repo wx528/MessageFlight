@@ -18,6 +18,8 @@ class UFOParameters:
     dome_color: str = "#C0C0C0"
     beam_color: str = "#00FF00"
     glow_intensity: float = 0.8
+    banner_color: str = "#9370DB"
+    text_color: str = "#FFFFFF"
     banner_attach_x: int = -30
     banner_attach_y: int = 0
 
@@ -59,6 +61,8 @@ class UFOPreset(PlanePreset):
             ParamDef("dome_color", "圆顶颜色", "color", "#C0C0C0"),
             ParamDef("beam_color", "光束颜色", "color", "#00FF00"),
             ParamDef("glow_intensity", "发光强度", "float", 0.8, 0.0, 1.0, 0.1),
+            ParamDef("banner_color", "横幅颜色", "color", "#9370DB"),
+            ParamDef("text_color", "文字颜色", "color", "#FFFFFF"),
             ParamDef("banner_attach_x", "横幅挂载X", "int", -30, -50, 100),
             ParamDef("banner_attach_y", "横幅挂载Y", "int", 0, -50, 100),
         ]

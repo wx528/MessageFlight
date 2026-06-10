@@ -118,6 +118,9 @@ class PlaneBanner(QWidget):
         """Replace the active preset and its params, then request a repaint."""
         self._preset = preset
         self._params = params
+        # sync banner/text colors if the new params carry them
+        if hasattr(params, "text_color"):
+            self._text_color = QColor(params.text_color)
         self._recalculate_size()
         self.update()
 

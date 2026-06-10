@@ -84,3 +84,27 @@ def test_get_preset_unknown_returns_airplane_fallback():
 def test_list_presets_includes_airplane():
     keys = [k for k, _, _ in list_presets()]
     assert "airplane" in keys
+
+
+from message_flight.plane_presets.rocket import RocketPreset, RocketParameters
+
+
+def test_rocket_preset_has_name_and_icon():
+    p = RocketPreset()
+    assert p.name == "火箭"
+    assert p.icon == "🚀"
+
+
+def test_rocket_preset_default_params():
+    p = RocketPreset()
+    params = p.get_default_params()
+    assert isinstance(params, RocketParameters)
+    assert params.body_length == 60
+
+
+def test_rocket_draw_does_not_crash():
+    from unittest.mock import MagicMock
+    p = RocketPreset()
+    painter = MagicMock()
+    p.draw(painter, p.get_default_params())
+    assert painter.drawPath.call_count >= 1 or painter.drawRect.call_count >= 1

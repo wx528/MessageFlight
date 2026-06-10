@@ -1,7 +1,7 @@
 """Custom QWidget that draws a plane with a notification banner."""
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QRect, pyqtProperty
+from PyQt6.QtCore import Qt, QRect, QTimer, pyqtProperty
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import QWidget
 
@@ -42,6 +42,68 @@ class PlaneBanner(QWidget):
         self._plane_offset = 0.0
         self._facing_direction = 1  # 1 = 朝右, -1 = 朝左
         self.setFixedSize(self._banner_width + 80, 80)
+
+        # 交互状态
+        self._click_feedback_text = ""
+        self._click_feedback_timer = None
+        self._dragging = False
+        self._drag_start_pos = None
+        self._drag_start_global = None
+
+    def _ensure_feedback_timer(self):
+        if self._click_feedback_timer is None:
+            try:
+                self._click_feedback_timer = QTimer(self)
+                self._click_feedback_timer.setSingleShot(True)
+                self._click_feedback_timer.timeout.connect(self._hide_click_feedback)
+            except RuntimeError:
+                pass
+
+    def _hide_click_feedback(self):
+        self._click_feedback_text = ""
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging = True
+            self._drag_start_pos = event.pos()
+            self._drag_start_global = event.globalPosition().toPoint()
+            # 显示点击反馈
+            self._click_feedback_text = "✈️ 收到!"
+            self._ensure_feedback_timer()
+            if self._click_feedback_timer is not None:
+                self._click_feedback_timer.start(1500)
+            self.update()
+            # 通知父窗口暂停飞行动画
+            parent = self.parent()
+            if parent and hasattr(parent, "set_paused"):
+                parent.set_paused(True)
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._dragging and self.parent():
+            delta = event.globalPosition().toPoint() - self._drag_start_global
+            new_pos = self.pos() + delta
+            # 限制在屏幕范围内
+            new_pos.setX(max(-self.width() + 50, min(new_pos.x(), self.parent().width() - 50)))
+            new_pos.setY(max(-self.height() + 50, min(new_pos.y(), self.parent().height() - 50)))
+            self.move(new_pos)
+            self._drag_start_global = event.globalPosition().toPoint()
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging = False
+            self._drag_start_pos = None
+            self._drag_start_global = None
+            # 通知父窗口恢复飞行动画
+            parent = self.parent()
+            if parent and hasattr(parent, "set_paused"):
+                parent.set_paused(False)
+            event.accept()
+
+    def is_dragging(self) -> bool:
+        return self._dragging
 
     def _generate_plane_cache(self) -> None:
         """Render the plane preset to an off-screen pixmap for fast blitting."""
@@ -212,7 +274,29 @@ class PlaneBanner(QWidget):
             self._draw_banner(painter, bx, by, tail_on_right=False)
             self._draw_plane(painter, plane_x, plane_y, facing=-1)
 
+        # 绘制点击反馈气泡
+        if self._click_feedback_text:
+            self._draw_click_feedback(painter)
+
         painter.end()
+
+    def _draw_click_feedback(self, painter: QPainter):
+        """Draw a temporary click feedback bubble above the plane."""
+        fm = QFontMetrics(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
+        text_w = fm.horizontalAdvance(self._click_feedback_text) + 16
+        text_h = fm.height() + 8
+        bubble_x = (self.width() - text_w) // 2
+        bubble_y = 5
+
+        path = QPainterPath()
+        path.addRoundedRect(bubble_x, bubble_y, text_w, text_h, 8, 8)
+        painter.fillPath(path, QColor(0, 0, 0, 180))
+
+        painter.setPen(Qt.GlobalColor.white)
+        font = QFont("Microsoft YaHei", 10, QFont.Weight.Bold)
+        painter.setFont(font)
+        text_y = bubble_y + (text_h + fm.ascent() - fm.descent()) // 2
+        painter.drawText(bubble_x, bubble_y, text_w, text_h, Qt.AlignmentFlag.AlignCenter, self._click_feedback_text)
 
     def _draw_banner(self, painter: QPainter, bx: int, by: int, tail_on_right: bool):
         """Draw the notification banner at (bx, by).

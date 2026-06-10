@@ -5,6 +5,7 @@ from PyQt6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from message_flight.demo_notifications import NOTIFICATIONS
+from message_flight.notification_queue import NotificationQueue
 from message_flight.plane_banner import PlaneBanner
 
 _VALID_FLY_PATHS = (
@@ -32,6 +33,7 @@ class FlightWidget(QWidget):
         re_flight_jitter: int = 120,
         re_flight_jitter_min_ratio: float = -1.0,
         notification_interval_ms: int = 5000,
+        notification_queue_max_size: int = 20,
         plane_colors: dict = None,
     ) -> None:
         super().__init__()
@@ -83,6 +85,10 @@ class FlightWidget(QWidget):
         self._zigzag_row = 0
         self._zigzag_direction = 1  # 1 = left→right, -1 = right→left
         self._around_step = 0
+
+        # 通知队列
+        self._notification_queue = NotificationQueue(max_size=notification_queue_max_size)
+        self._last_dropped_count = 0
 
         start_y = self._compute_start_y()
         self.plane.move(-self.plane.width(), start_y)
@@ -201,6 +207,11 @@ class FlightWidget(QWidget):
             self.fly_anim.stop()
             self._fly_stopped = True
             return
+
+        # 队列里有等待显示的通知：切换横幅文字，但保持当前飞行轨迹不重置
+        next_text = self._notification_queue.dequeue()
+        if next_text is not None:
+            self.plane.set_text(next_text)
 
         if self._fly_path == "vertical_pong":
             self._on_vertical_pong_finished()
@@ -418,6 +429,26 @@ class FlightWidget(QWidget):
 
     def is_paused(self):
         return self._paused
+
+    @property
+    def notification_queue(self) -> NotificationQueue:
+        """暴露队列以便外部代码（设置对话框、测试）查询或清空。"""
+        return self._notification_queue
+
+    def enqueue_notification(self, text: str) -> None:
+        """入队一条通知，必要时立即显示（队列之前为空时）。
+
+        队列非空时不立即显示，避免打断当前动画；这些通知会在
+        :meth:`_on_fly_finished` 中按 FIFO 顺序逐条显示。
+        """
+        was_empty = self._notification_queue.is_empty()
+        dropped = self._notification_queue.enqueue(text)
+        if dropped is not None:
+            self._last_dropped_count += 1
+        if was_empty:
+            next_text = self._notification_queue.dequeue()
+            if next_text is not None:
+                self.show_notification(next_text)
 
     def show_notification(self, text: str):
         """显示一条真实通知，并重置飞行动画按当前路径模式飞出"""

@@ -266,3 +266,63 @@ def test_around_on_finished_advances_step(qapp):
     widget._fly_count = 0
     widget._on_fly_finished()
     assert widget._around_step == 1
+
+
+def test_notification_queue_property_exposed(qapp):
+    """FlightWidget 暴露 notification_queue 属性"""
+    from message_flight.notification_queue import NotificationQueue
+    widget = _make_widget(qapp)
+    assert isinstance(widget.notification_queue, NotificationQueue)
+    assert widget.notification_queue.is_empty()
+
+
+def test_enqueue_first_notification_shows_immediately(qapp):
+    """第一条 enqueue 应该立即显示（队列为空时打断当前动画）"""
+    widget = _make_widget(qapp)
+    with patch.object(widget, "show_notification") as mock_show:
+        widget.enqueue_notification("first")
+        mock_show.assert_called_once_with("first")
+    assert widget.notification_queue.is_empty()
+
+
+def test_enqueue_second_notification_does_not_show(qapp):
+    """队列非空时 enqueue 不应立即显示（避免打断当前动画）"""
+    widget = _make_widget(qapp)
+    # 手动放入一个通知到队列（模拟"飞机正在飞第一个"）
+    widget._notification_queue.enqueue("first-still-flying")
+    with patch.object(widget, "show_notification") as mock_show:
+        widget.enqueue_notification("second")
+        # 队列非空，show_notification 不应被调用
+        mock_show.assert_not_called()
+    assert len(widget.notification_queue) == 2
+    assert widget.notification_queue.peek() == "first-still-flying"
+
+
+def test_on_fly_finished_drains_queue_sets_text(qapp):
+    """_on_fly_finished 应消费队首并更新飞机文字（不重置动画位置）"""
+    widget = _make_widget(qapp, fly_path="horizontal")
+    widget.fly_anim = MagicMock()
+    widget.plane.set_text = MagicMock()
+    widget._fly_count = 0
+    widget._fly_stopped = False
+    widget._notification_queue.enqueue("queued-msg")
+    # 调用 _on_fly_finished 会消费队首 + 继续水平路径
+    widget._on_fly_finished()
+    widget.plane.set_text.assert_called_once_with("queued-msg")
+    assert widget.notification_queue.is_empty()
+
+
+def test_enqueue_drops_oldest_when_full(qapp):
+    """队列满时 enqueue 应丢弃最旧的消息"""
+    widget = _make_widget(qapp, notification_queue_max_size=2)
+    widget.fly_anim = MagicMock()
+    # 第一条立即显示（show_notification 会清空队列）
+    widget.enqueue_notification("a")
+    # 模拟"飞机还在飞第一个"，手动入队一个
+    widget._notification_queue.enqueue("b")
+    widget._notification_queue.enqueue("c")  # 队列已满 [b, c]
+    # 再次 enqueue：会丢弃队首 b
+    dropped = widget._notification_queue.enqueue("d")
+    assert dropped == "b"
+    assert len(widget.notification_queue) == 2
+    assert widget.notification_queue.peek() == "c"

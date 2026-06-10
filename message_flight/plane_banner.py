@@ -1,8 +1,8 @@
 """Custom QWidget that draws a plane with a notification banner."""
 from typing import Optional
 
-from PyQt6.QtCore import pyqtProperty
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath
+from PyQt6.QtCore import Qt, QRect, pyqtProperty
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import QWidget
 
 from message_flight.plane_presets import get_preset
@@ -43,6 +43,21 @@ class PlaneBanner(QWidget):
         self._facing_direction = 1  # 1 = 朝右, -1 = 朝左
         self.setFixedSize(self._banner_width + 80, 80)
 
+    def _generate_plane_cache(self) -> None:
+        """Render the plane preset to an off-screen pixmap for fast blitting."""
+        size = 80
+        self._plane_cache = QPixmap(size, size)
+        self._plane_cache.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(self._plane_cache)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rotation = getattr(self._params, 'rotation', 0.0)
+        if rotation != 0.0:
+            painter.translate(35, 40)
+            painter.rotate(rotation)
+            painter.translate(-35, -40)
+        self._preset.draw(painter, self._params)
+        painter.end()
+
     def _recalculate_size(self) -> None:
         """Recalculate widget size based on banner width and mount point offset."""
         attach_x = getattr(self._params, 'banner_attach_x', 0)
@@ -56,6 +71,33 @@ class PlaneBanner(QWidget):
         self._banner_width = max(200, tw)
         self._recalculate_size()
         self.update()
+
+    def _plane_rect(self) -> QRect:
+        """Return the bounding rect of the plane area (approximate)."""
+        float_y = int(self._plane_offset * 6)
+        attach_x = getattr(self._params, 'banner_attach_x', 0)
+        extra_left = max(0, -attach_x)
+        if self._facing_direction == 1:
+            plane_x = extra_left + self._banner_width + 10
+        else:
+            plane_x = extra_left
+        return QRect(plane_x, 15 + float_y, 80, 80)
+
+    def _banner_rect(self) -> QRect:
+        """Return the bounding rect of the banner area."""
+        float_y = int(self._plane_offset * 6)
+        attach_x = getattr(self._params, 'banner_attach_x', 0)
+        extra_left = max(0, -attach_x)
+        if self._facing_direction == 1:
+            plane_x = extra_left + self._banner_width + 10
+            mount_x = plane_x + attach_x
+            bx = mount_x - self._banner_width - 10
+        else:
+            plane_x = extra_left
+            mount_x = plane_x + 70 - attach_x
+            bx = mount_x + 10
+        by = 15 + float_y + getattr(self._params, 'banner_attach_y', 35) - self._banner_height // 2
+        return QRect(bx, by, self._banner_width + 20, self._banner_height + 20)
 
     def set_facing_direction(self, direction: int) -> None:
         """Set the facing direction (1 = right, -1 = left) and trigger repaint."""
@@ -71,8 +113,10 @@ class PlaneBanner(QWidget):
         return self._plane_offset
 
     def set_plane_offset(self, val: float):
+        old_rect = self._plane_rect()
         self._plane_offset = val
-        self.update()
+        new_rect = self._plane_rect()
+        self.update(old_rect.united(new_rect))
 
     plane_offset = pyqtProperty(float, get_plane_offset, set_plane_offset)
 
@@ -114,6 +158,7 @@ class PlaneBanner(QWidget):
             self._text_color = QColor(text_color)
             if hasattr(self._params, "text_color"):
                 self._params.text_color = text_color
+        self._generate_plane_cache()
         self.update()
 
     def apply_preset(self, preset, params) -> None:
@@ -124,6 +169,7 @@ class PlaneBanner(QWidget):
         if hasattr(params, "text_color"):
             self._text_color = QColor(params.text_color)
         self._recalculate_size()
+        self._generate_plane_cache()
         self.update()
 
     def paintEvent(self, event):
@@ -212,21 +258,17 @@ class PlaneBanner(QWidget):
         painter.drawText(bx + 20, text_y, self._text)
 
     def _draw_plane(self, painter: QPainter, px: int, py: int, facing: int):
-        """Draw the plane at (px, py).
+        """Draw the plane at (px, py) using cached pixmap.
 
         Args:
             facing: 1 = head points right; -1 = head points left.
         """
+        if not hasattr(self, '_plane_cache') or self._plane_cache.isNull():
+            self._generate_plane_cache()
         painter.save()
         painter.translate(px, py)
         if facing == -1:
             painter.scale(-1, 1)
             painter.translate(-70, 0)
-        # 应用旋转（围绕飞船中心，约 35,40）
-        rotation = getattr(self._params, 'rotation', 0.0)
-        if rotation != 0.0:
-            painter.translate(35, 40)
-            painter.rotate(rotation)
-            painter.translate(-35, -40)
-        self._preset.draw(painter, self._params)
+        painter.drawPixmap(0, 0, self._plane_cache)
         painter.restore()

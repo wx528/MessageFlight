@@ -4,7 +4,7 @@ import random
 import sys
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPainterPath, QPixmap
+from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPainterPath, QPixmap, QPixmapCache
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QSystemTrayIcon
 
 from message_flight.autostart import is_auto_start_enabled, set_auto_start
@@ -26,6 +26,8 @@ class TrayApplication:
         )
         self.app = QApplication(sys.argv)
         self.app.setQuitOnLastWindowClosed(False)
+        # Limit Qt internal pixmap cache to prevent memory growth over long runs
+        QPixmapCache.setCacheLimit(1024 * 50)  # 50 MB
 
         # Load persisted color scheme and hand it to the widget
         cfg = load_config()

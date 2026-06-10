@@ -66,3 +66,21 @@ def test_airplane_draw_does_not_crash():
 def test_airplane_parameters_is_dataclass():
     import dataclasses
     assert dataclasses.is_dataclass(AirplaneParameters)
+
+
+from message_flight.plane_presets import get_preset, list_presets
+
+
+def test_get_preset_returns_airplane():
+    p = get_preset("airplane")
+    assert isinstance(p, AirplanePreset)
+
+
+def test_get_preset_unknown_returns_airplane_fallback():
+    p = get_preset("nonexistent")
+    assert isinstance(p, AirplanePreset)
+
+
+def test_list_presets_includes_airplane():
+    keys = [k for k, _, _ in list_presets()]
+    assert "airplane" in keys

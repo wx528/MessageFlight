@@ -108,3 +108,27 @@ def test_rocket_draw_does_not_crash():
     painter = MagicMock()
     p.draw(painter, p.get_default_params())
     assert painter.drawPath.call_count >= 1 or painter.drawRect.call_count >= 1
+
+
+from message_flight.plane_presets.ufo import UFOPreset, UFOParameters
+
+
+def test_ufo_preset_has_name_and_icon():
+    p = UFOPreset()
+    assert p.name == "UFO"
+    assert p.icon == "🛸"
+
+
+def test_ufo_preset_default_params():
+    p = UFOPreset()
+    params = p.get_default_params()
+    assert isinstance(params, UFOParameters)
+    assert params.disc_radius == 30
+
+
+def test_ufo_draw_does_not_crash():
+    from unittest.mock import MagicMock
+    p = UFOPreset()
+    painter = MagicMock()
+    p.draw(painter, p.get_default_params())
+    assert painter.drawEllipse.call_count >= 1

@@ -23,7 +23,7 @@ class PlanePreset(ABC):
     icon: str = ""
 
     @abstractmethod
-    def draw(self, painter: QPainter, params: Any, facing: int = 1) -> None:
+    def draw(self, painter: QPainter, params: Any) -> None:
         pass
 
     @abstractmethod

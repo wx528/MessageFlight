@@ -59,7 +59,7 @@ def test_airplane_draw_does_not_crash():
     p = AirplanePreset()
     params = p.get_default_params()
     painter = MagicMock()
-    p.draw(painter, params, facing=1)
+    p.draw(painter, params)
     assert painter.drawEllipse.call_count >= 3
 
 

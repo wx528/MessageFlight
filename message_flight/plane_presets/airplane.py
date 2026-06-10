@@ -25,11 +25,9 @@ class AirplanePreset(PlanePreset):
     name = "飞机"
     icon = "✈️"
 
-    def draw(self, painter: QPainter, params: AirplaneParameters, facing: int = 1) -> None:
+    def draw(self, painter: QPainter, params: AirplaneParameters) -> None:
         s = params.body_scale
         painter.save()
-        if facing == -1:
-            painter.scale(-1, 1)
         self._draw_thruster(painter, params, s)
         self._draw_fuselage(painter, params, s)
         self._draw_wings(painter, params, s)

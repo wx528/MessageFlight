@@ -1,4 +1,5 @@
 """Tests for the persistent AppConfig (Task 05) + FlightModeConfig (Task 06)."""
+import datetime
 import os
 
 import pytest
@@ -15,6 +16,7 @@ from message_flight.config import (
     ORG,
     THEMES,
     AppConfig,
+    is_dnd_active,
     load_config,
     save_config,
 )
@@ -189,3 +191,94 @@ def test_save_load_preset_round_trip(isolated_settings):
     loaded = load_config()
     assert loaded.plane_preset_key == "ufo"
     assert loaded.plane_preset_params_json == '{"disc_radius": 30}'
+
+
+def test_load_config_default_dnd_off(isolated_settings):
+    """DND defaults: manual off, schedule off, default window 22:00-08:00."""
+    cfg = load_config()
+    assert cfg.dnd_enabled is False
+    assert cfg.dnd_schedule_enabled is False
+    assert cfg.dnd_schedule_start == "22:00"
+    assert cfg.dnd_schedule_end == "08:00"
+
+
+def test_save_load_dnd_round_trip(isolated_settings):
+    """Saving DND toggles must round-trip through load_config."""
+    cfg = load_config()
+    cfg.dnd_enabled = True
+    cfg.dnd_schedule_enabled = True
+    cfg.dnd_schedule_start = "09:30"
+    cfg.dnd_schedule_end = "17:30"
+    save_config(cfg)
+    loaded = load_config()
+    assert loaded.dnd_enabled is True
+    assert loaded.dnd_schedule_enabled is True
+    assert loaded.dnd_schedule_start == "09:30"
+    assert loaded.dnd_schedule_end == "17:30"
+
+
+def test_is_dnd_active_manual_toggle():
+    """is_dnd_active returns True when the manual toggle is on, regardless of time."""
+    cfg = AppConfig(dnd_enabled=True)
+    assert is_dnd_active(cfg, now=datetime.time(12, 0)) is True
+    assert is_dnd_active(cfg, now=datetime.time(3, 0)) is True
+
+
+def test_is_dnd_active_schedule_simple_window():
+    """Same-day schedule window matches when current time falls inside [start, end)."""
+    cfg = AppConfig(
+        dnd_enabled=False,
+        dnd_schedule_enabled=True,
+        dnd_schedule_start="09:00",
+        dnd_schedule_end="17:00",
+    )
+    assert is_dnd_active(cfg, now=datetime.time(8, 59)) is False
+    assert is_dnd_active(cfg, now=datetime.time(9, 0)) is True
+    assert is_dnd_active(cfg, now=datetime.time(12, 30)) is True
+    assert is_dnd_active(cfg, now=datetime.time(17, 0)) is False
+    assert is_dnd_active(cfg, now=datetime.time(23, 0)) is False
+
+
+def test_is_dnd_active_schedule_wraps_midnight():
+    """Cross-midnight window (e.g. 22:00-08:00) wraps past 00:00."""
+    cfg = AppConfig(
+        dnd_enabled=False,
+        dnd_schedule_enabled=True,
+        dnd_schedule_start="22:00",
+        dnd_schedule_end="08:00",
+    )
+    assert is_dnd_active(cfg, now=datetime.time(7, 59)) is True
+    assert is_dnd_active(cfg, now=datetime.time(8, 0)) is False
+    assert is_dnd_active(cfg, now=datetime.time(12, 0)) is False
+    assert is_dnd_active(cfg, now=datetime.time(22, 0)) is True
+    assert is_dnd_active(cfg, now=datetime.time(23, 59)) is True
+
+
+def test_is_dnd_active_zero_length_window_never_matches():
+    """A zero-length schedule window (start == end) is treated as disabled."""
+    cfg = AppConfig(
+        dnd_enabled=False,
+        dnd_schedule_enabled=True,
+        dnd_schedule_start="12:00",
+        dnd_schedule_end="12:00",
+    )
+    assert is_dnd_active(cfg, now=datetime.time(12, 0)) is False
+
+
+def test_is_dnd_active_bad_schedule_string():
+    """Garbled schedule strings fall back to non-DND instead of crashing."""
+    cfg = AppConfig(
+        dnd_enabled=False,
+        dnd_schedule_enabled=True,
+        dnd_schedule_start="not-a-time",
+        dnd_schedule_end="08:00",
+    )
+    assert is_dnd_active(cfg, now=datetime.time(3, 0)) is False
+
+
+def test_is_dnd_active_default_uses_current_time():
+    """When ``now`` is omitted, is_dnd_active must consult datetime.now()."""
+    cfg = AppConfig(dnd_enabled=True)
+    assert is_dnd_active(cfg) is True
+    cfg2 = AppConfig(dnd_enabled=False, dnd_schedule_enabled=False)
+    assert is_dnd_active(cfg2) is False

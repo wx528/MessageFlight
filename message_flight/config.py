@@ -10,11 +10,12 @@ is harder for users to find and edit by hand).
 from __future__ import annotations
 
 import contextlib
+import datetime
 import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from PyQt6.QtCore import QSettings
 
@@ -26,6 +27,12 @@ FLIGHT_MODE_KEY = "flight_mode"
 MINIMAX_SUBSCRIPTION_KEY = "minimax_subscription_key"
 PLANE_PRESET_KEY = "plane_preset_key"
 PLANE_PRESET_PARAMS_JSON_KEY = "plane_preset_params_json"
+
+# Do-Not-Disturb configuration.
+DND_ENABLED_KEY = "dnd_enabled"
+DND_SCHEDULE_ENABLED_KEY = "dnd_schedule_enabled"
+DND_SCHEDULE_START_KEY = "dnd_schedule_start"
+DND_SCHEDULE_END_KEY = "dnd_schedule_end"
 
 TTS_PROVIDER_KEY = "tts_provider"
 DEFAULT_TTS_PROVIDER = "sapi"
@@ -186,6 +193,56 @@ class AppConfig:
     minimax_subscription_key: str = ""
     plane_preset_key: str = "airplane"
     plane_preset_params_json: str = ""
+    # Do-Not-Disturb
+    dnd_enabled: bool = False
+    dnd_schedule_enabled: bool = False
+    dnd_schedule_start: str = "22:00"
+    dnd_schedule_end: str = "08:00"
+
+
+def _parse_hhmm(text: str) -> Optional[int]:
+    """Parse ``"HH:MM"`` to minutes-since-midnight. Returns ``None`` on bad input."""
+    try:
+        parts = str(text).strip().split(":")
+        if len(parts) != 2:
+            return None
+        h, m = int(parts[0]), int(parts[1])
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            return None
+        return h * 60 + m
+    except (ValueError, AttributeError):
+        return None
+
+
+def is_dnd_active(
+    cfg: AppConfig,
+    now: Optional[datetime.time] = None,
+) -> bool:
+    """Return True if Do-Not-Disturb should suppress incoming real notifications.
+
+    Two independent triggers:
+    - ``cfg.dnd_enabled`` (manual toggle)
+    - ``cfg.dnd_schedule_enabled`` plus the current time falling inside
+      the configured ``[start, end)`` window. Midnight-crossing windows
+      (e.g. ``22:00`` to ``08:00``) are supported: the window is treated
+      as wrapping past midnight.
+    """
+    if cfg.dnd_enabled:
+        return True
+    if cfg.dnd_schedule_enabled:
+        start = _parse_hhmm(cfg.dnd_schedule_start)
+        end = _parse_hhmm(cfg.dnd_schedule_end)
+        if start is None or end is None:
+            return False
+        current = now or datetime.datetime.now().time()
+        current_minutes = current.hour * 60 + current.minute
+        if start == end:
+            return False  # zero-length window: never match
+        if start < end:
+            return start <= current_minutes < end
+        # Wraps midnight: e.g. 22:00 → 08:00 means current_minutes >= start OR < end
+        return current_minutes >= start or current_minutes < end
+    return False
 
 
 def _new_settings() -> QSettings:
@@ -299,6 +356,11 @@ def load_config() -> AppConfig:
         minimax_subscription_key = str(settings.value(MINIMAX_SUBSCRIPTION_KEY, ""))
         plane_preset_key = str(settings.value(PLANE_PRESET_KEY, "airplane"))
         plane_preset_params_json = str(settings.value(PLANE_PRESET_PARAMS_JSON_KEY, ""))
+        # DND fields
+        dnd_enabled = _parse_bool(settings.value(DND_ENABLED_KEY, False))
+        dnd_schedule_enabled = _parse_bool(settings.value(DND_SCHEDULE_ENABLED_KEY, False))
+        dnd_schedule_start = str(settings.value(DND_SCHEDULE_START_KEY, "22:00"))
+        dnd_schedule_end = str(settings.value(DND_SCHEDULE_END_KEY, "08:00"))
     except Exception as e:
         print(f"load_config: failed to read keys ({e!r}); using defaults", file=sys.stderr)
         return _default_config()
@@ -312,6 +374,10 @@ def load_config() -> AppConfig:
         minimax_subscription_key=minimax_subscription_key,
         plane_preset_key=plane_preset_key,
         plane_preset_params_json=plane_preset_params_json,
+        dnd_enabled=dnd_enabled,
+        dnd_schedule_enabled=dnd_schedule_enabled,
+        dnd_schedule_start=dnd_schedule_start,
+        dnd_schedule_end=dnd_schedule_end,
     )
 
 
@@ -339,9 +405,29 @@ def save_config(cfg: AppConfig) -> None:
         settings.setValue(MINIMAX_SUBSCRIPTION_KEY, cfg.minimax_subscription_key)
         settings.setValue(PLANE_PRESET_KEY, cfg.plane_preset_key)
         settings.setValue(PLANE_PRESET_PARAMS_JSON_KEY, cfg.plane_preset_params_json)
+        settings.setValue(DND_ENABLED_KEY, cfg.dnd_enabled)
+        settings.setValue(DND_SCHEDULE_ENABLED_KEY, cfg.dnd_schedule_enabled)
+        settings.setValue(DND_SCHEDULE_START_KEY, cfg.dnd_schedule_start)
+        settings.setValue(DND_SCHEDULE_END_KEY, cfg.dnd_schedule_end)
         settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)
+
+
+def _parse_bool(value: Any) -> bool:
+    """Coerce QSettings-returned value into a bool.
+
+    QSettings on some platforms returns the literal string ``"true"`` /
+    ``"false"`` for boolean values, so we accept both Python bools and
+    the lowercased string forms.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes", "on")
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return False
 
 
 def _default_config() -> AppConfig:
@@ -356,4 +442,8 @@ def _default_config() -> AppConfig:
         minimax_subscription_key="",
         plane_preset_key="airplane",
         plane_preset_params_json="",
+        dnd_enabled=False,
+        dnd_schedule_enabled=False,
+        dnd_schedule_start="22:00",
+        dnd_schedule_end="08:00",
     )

@@ -8,7 +8,7 @@ from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPainterPath, QPixmap,
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QSystemTrayIcon
 
 from message_flight.autostart import is_auto_start_enabled, set_auto_start
-from message_flight.config import load_config, save_config
+from message_flight.config import is_dnd_active, load_config, save_config
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
@@ -30,11 +30,11 @@ class TrayApplication:
         QPixmapCache.setCacheLimit(1024 * 50)  # 50 MB
 
         # Load persisted color scheme and hand it to the widget
-        cfg = load_config()
-        self.widget = FlightWidget(plane_colors=cfg.colors, **cfg.flight_kwargs)
+        self.cfg = load_config()
+        self.widget = FlightWidget(plane_colors=self.cfg.colors, **self.cfg.flight_kwargs)
         self.widget.show()
 
-        self.tts = TTSManager(cfg)
+        self.tts = TTSManager(self.cfg)
 
         # 系统托盘
         self.tray_icon = QSystemTrayIcon(self._create_tray_icon(), self.app)
@@ -54,6 +54,13 @@ class TrayApplication:
         self.action_demo = QAction("发送演示通知", self.menu)
         self.action_demo.triggered.connect(self._send_demo_notification)
         self.menu.addAction(self.action_demo)
+
+        # 免打扰模式（manual toggle only; scheduled window is read-only here）
+        self.action_dnd = QAction("免打扰", self.menu)
+        self.action_dnd.setCheckable(True)
+        self.action_dnd.setChecked(self.cfg.dnd_enabled)
+        self.action_dnd.triggered.connect(self._toggle_dnd)
+        self.menu.addAction(self.action_dnd)
 
         self.action_settings = QAction("设置...", self.menu)
         self.action_settings.triggered.connect(self._open_settings)
@@ -144,6 +151,14 @@ class TrayApplication:
         self.widget.set_paused(checked)
         self.action_pause.setText("继续飞行" if checked else "暂停飞行")
 
+    def _toggle_dnd(self, checked: bool):
+        """Toggle manual Do-Not-Disturb and persist the choice."""
+        self.cfg.dnd_enabled = bool(checked)
+        try:
+            save_config(self.cfg)
+        except Exception as e:
+            logger.warning("Failed to persist DND toggle: %s", e)
+
     def _toggle_autostart(self, checked: bool):
         try:
             set_auto_start(checked)
@@ -156,14 +171,17 @@ class TrayApplication:
             self._show_widget()
 
     def _on_real_notification(self, app_name: str, text: str):
-        """收到真实系统通知"""
+        """收到真实系统通知（受 DND 控制；演示通知不受影响）"""
+        if is_dnd_active(self.cfg):
+            logger.info("[DND] Suppressed real notification from %s", app_name)
+            return
         display = f"[{app_name}] {text}"
         # 截断过长的文本
         if len(display) > 80:
             display = display[:77] + "..."
         logger.info("[Real Notification] %s", display)
         self.tts.speak(display)
-        self.widget.show_notification(display)
+        self.widget.enqueue_notification(display)
         self._show_widget()
 
     def _on_access_status(self, status: int):
@@ -172,11 +190,15 @@ class TrayApplication:
         self.action_notif_status.setText(f"通知权限: {labels.get(status, '未知')} ({status})")
 
     def _send_demo_notification(self):
-        """Pick a random demo notification, speak it, and fire it on the widget."""
+        """Pick a random demo notification, speak it, and fire it on the widget.
+
+        Demo notifications bypass DND so the user can always test the
+        notification path even when real notifications are silenced.
+        """
         text = random.choice(NOTIFICATIONS)
         logger.info("[Demo Notification] %s", text)
         self.tts.speak(text)
-        self.widget.show_notification(text)
+        self.widget.enqueue_notification(text)
 
     def _open_settings(self):
         """Open the settings dialog (color scheme + flight mode). On accept, save config and apply changes."""

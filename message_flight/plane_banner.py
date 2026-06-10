@@ -5,6 +5,8 @@ from PyQt6.QtCore import Qt, pyqtProperty
 from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QFontMetrics
 from PyQt6.QtWidgets import QWidget
 
+from message_flight.plane_presets import get_preset
+
 
 class PlaneBanner(QWidget):
     def __init__(
@@ -34,6 +36,18 @@ class PlaneBanner(QWidget):
         self._thruster_outer_color = QColor(thruster_outer_color)
         self._thruster_middle_color = QColor(thruster_middle_color)
         self._thruster_inner_color = QColor(thruster_inner_color)
+        from message_flight.plane_presets.airplane import AirplaneParameters
+        self._preset = get_preset("airplane")
+        self._params = AirplaneParameters(
+            plane_color=plane_color,
+            wing_color=wing_color,
+            accent_color=accent_color,
+            decor_color=decor_color,
+            banner_color=banner_color,
+            thruster_outer_color=thruster_outer_color,
+            thruster_middle_color=thruster_middle_color,
+            thruster_inner_color=thruster_inner_color,
+        )
         self._plane_offset = 0.0
         self._facing_direction = 1  # 1 = 朝右, -1 = 朝左
         self.setFixedSize(self._banner_width + 80, 80)
@@ -90,6 +104,9 @@ class PlaneBanner(QWidget):
         for attr, value in mapping.values():
             if value is not None:
                 setattr(self, attr, QColor(value))
+                if hasattr(self, "_params"):
+                    params_attr = attr.lstrip("_")
+                    setattr(self._params, params_attr, value)
         self.update()
 
     def paintEvent(self, event):
@@ -167,67 +184,5 @@ class PlaneBanner(QWidget):
         if facing == -1:
             painter.scale(-1, 1)
             painter.translate(-70, 0)
-        self._draw_thruster(painter)
-        self._draw_fuselage(painter)
-        self._draw_wings(painter)
+        self._preset.draw(painter, self._params, facing)
         painter.restore()
-
-    def _draw_fuselage(self, painter: QPainter):
-        """Draw fuselage body, nose, white dots, and pink decor."""
-        c = self._plane_color
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(c)
-        painter.drawEllipse(10, 18, 45, 22)
-        painter.drawEllipse(48, 19, 14, 20)
-
-        painter.setBrush(self._accent_color)
-        painter.drawEllipse(52, 24, 6, 6)
-        painter.drawEllipse(38, 24, 5, 5)
-
-        painter.setBrush(self._decor_color)
-        painter.drawEllipse(60, 26, 4, 6)
-        painter.setBrush(self._banner_color)
-        painter.drawEllipse(56, 22, 12, 3)
-        painter.drawEllipse(56, 33, 12, 3)
-
-    def _draw_wings(self, painter: QPainter):
-        """Draw top wing and tail fin."""
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(self._wing_color)
-        wing_path = QPainterPath()
-        wing_path.moveTo(25, 25)
-        wing_path.lineTo(15, 8)
-        wing_path.lineTo(35, 8)
-        wing_path.lineTo(40, 25)
-        wing_path.closeSubpath()
-        painter.drawPath(wing_path)
-
-        tail_path = QPainterPath()
-        tail_path.moveTo(12, 28)
-        tail_path.lineTo(2, 18)
-        tail_path.lineTo(12, 22)
-        tail_path.closeSubpath()
-        painter.drawPath(tail_path)
-
-    def _draw_thruster(self, painter: QPainter, intensity: float = 1.0):
-        """Draw the thruster flame at the plane's tail.
-
-        Args:
-            painter: QPainter instance.
-            intensity: Flame width multiplier (0.5-1.5), default 1.0.
-                Scales ellipse widths; height stays fixed.
-        """
-        painter.setPen(Qt.PenStyle.NoPen)
-
-        # 三层 y 错落（25/26/27）让火焰视觉上更自然
-        outer_w = int(14 * intensity)
-        painter.setBrush(self._thruster_outer_color)
-        painter.drawEllipse(5, 25, outer_w, 10)
-
-        mid_w = int(10 * intensity)
-        painter.setBrush(self._thruster_middle_color)
-        painter.drawEllipse(5, 26, mid_w, 7)
-
-        inner_w = int(5 * intensity)
-        painter.setBrush(self._thruster_inner_color)
-        painter.drawEllipse(5, 27, inner_w, 4)

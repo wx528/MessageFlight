@@ -1,55 +1,7 @@
-"""Tests for PlaneBanner component decomposition (Task 03) and color customization (Task 02)."""
-import inspect
+"""Tests for PlaneBanner color customization (Task 02) and preset delegation (Task 05)."""
 from unittest.mock import MagicMock, patch
 
 from message_flight.plane_banner import PlaneBanner
-
-
-def test_fuselage_method_exists():
-    """_draw_fuselage 方法必须存在"""
-    assert hasattr(PlaneBanner, "_draw_fuselage")
-    assert callable(getattr(PlaneBanner, "_draw_fuselage"))
-
-
-def test_wings_method_exists():
-    """_draw_wings 方法必须存在"""
-    assert hasattr(PlaneBanner, "_draw_wings")
-    assert callable(getattr(PlaneBanner, "_draw_wings"))
-
-
-def test_thruster_method_exists():
-    """_draw_thruster 方法必须存在（新增）"""
-    assert hasattr(PlaneBanner, "_draw_thruster")
-    assert callable(getattr(PlaneBanner, "_draw_thruster"))
-
-
-def test_thruster_accepts_intensity():
-    """_draw_thruster 必须接受 intensity 参数"""
-    sig = inspect.signature(PlaneBanner._draw_thruster)
-    assert "intensity" in sig.parameters
-
-
-def test_thruster_calls_painter_at_least_3_times():
-    """_draw_thruster 应至少调用 painter.drawEllipse 3 次（3 层火焰）"""
-    with patch("PyQt6.QtWidgets.QWidget.__init__"), \
-         patch.object(PlaneBanner, "setFixedSize"):
-        banner = PlaneBanner()
-    mock_painter = MagicMock()
-    banner._draw_thruster(mock_painter, intensity=1.0)
-    assert mock_painter.drawEllipse.call_count >= 3
-
-
-def test_thruster_intensity_scales_outer_width():
-    """intensity=2.0 时外层椭圆宽度应为 28（捕获"忘记乘 intensity"bug）"""
-    with patch("PyQt6.QtWidgets.QWidget.__init__"), \
-         patch.object(PlaneBanner, "setFixedSize"):
-        banner = PlaneBanner()
-    mock_painter = MagicMock()
-    banner._draw_thruster(mock_painter, intensity=2.0)
-    # call_args_list[0] 是第一次 drawEllipse 调用（外层，最大）
-    outer_call = mock_painter.drawEllipse.call_args_list[0]
-    _, _, w, h = outer_call.args  # (x, y, w, h)
-    assert w == 28  # 14 * 2.0 = 28
 
 
 # ---------------------------------------------------------------------------
@@ -151,4 +103,29 @@ def test_update_colors_replaces_all_nine_attributes():
     assert banner._thruster_inner_color.name().lower() == "#999999"
     # Repaint should be requested exactly once (coalesced).
     banner.update.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Task 05: preset delegation
+# ---------------------------------------------------------------------------
+
+
+def test_plane_banner_uses_airplane_preset_by_default():
+    from message_flight.plane_presets import AirplanePreset
+    from message_flight.plane_presets.airplane import AirplaneParameters
+    with patch("PyQt6.QtWidgets.QWidget.__init__"), \
+         patch.object(PlaneBanner, "setFixedSize"):
+        banner = PlaneBanner()
+    assert isinstance(banner._preset, AirplanePreset)
+    assert isinstance(banner._params, AirplaneParameters)
+
+
+def test_plane_banner_update_colors_sets_preset_params():
+    with patch("PyQt6.QtWidgets.QWidget.__init__"), \
+         patch.object(PlaneBanner, "setFixedSize"):
+        banner = PlaneBanner()
+    banner.update = MagicMock()
+    banner.update_colors(plane_color="#ABCDEF", wing_color="#123456")
+    assert banner._params.plane_color == "#ABCDEF"
+    assert banner._params.wing_color == "#123456"
 

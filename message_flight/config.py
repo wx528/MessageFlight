@@ -24,6 +24,8 @@ FLIGHT_KWARG_KEY = "flight_kwargs_json"
 FLIGHT_MODE_KEY = "flight_mode"
 ONLINE_TTS_API_KEY = "online_tts_api_key"
 MINIMAX_SUBSCRIPTION_KEY = "minimax_subscription_key"
+PLANE_PRESET_KEY = "plane_preset_key"
+PLANE_PRESET_PARAMS_JSON_KEY = "plane_preset_params_json"
 
 DEFAULT_ONLINE_TTS_API_KEY = ""
 TTS_PROVIDER_KEY = "tts_provider"
@@ -178,6 +180,8 @@ class AppConfig:
     online_tts_api_key: str = DEFAULT_ONLINE_TTS_API_KEY
     tts_provider: str = DEFAULT_TTS_PROVIDER
     minimax_subscription_key: str = DEFAULT_ONLINE_TTS_API_KEY
+    plane_preset_key: str = "airplane"
+    plane_preset_params_json: str = ""
 
 
 def _new_settings() -> QSettings:
@@ -292,6 +296,8 @@ def load_config() -> AppConfig:
         if tts_provider not in VALID_TTS_PROVIDERS:
             tts_provider = DEFAULT_TTS_PROVIDER
         minimax_subscription_key = str(settings.value(MINIMAX_SUBSCRIPTION_KEY, DEFAULT_ONLINE_TTS_API_KEY))
+        plane_preset_key = str(settings.value(PLANE_PRESET_KEY, "airplane"))
+        plane_preset_params_json = str(settings.value(PLANE_PRESET_PARAMS_JSON_KEY, ""))
     except Exception as e:
         print(f"load_config: failed to read keys ({e!r}); using defaults", file=sys.stderr)
         return _default_config()
@@ -306,6 +312,8 @@ def load_config() -> AppConfig:
         online_tts_api_key=online_tts_api_key,
         tts_provider=tts_provider,
         minimax_subscription_key=minimax_subscription_key,
+        plane_preset_key=plane_preset_key,
+        plane_preset_params_json=plane_preset_params_json,
     )
 
 
@@ -333,6 +341,8 @@ def save_config(cfg: AppConfig) -> None:
             settings.setValue(ONLINE_TTS_API_KEY, cfg.online_tts_api_key)
             settings.setValue(TTS_PROVIDER_KEY, cfg.tts_provider)
             settings.setValue(MINIMAX_SUBSCRIPTION_KEY, cfg.minimax_subscription_key)
+            settings.setValue(PLANE_PRESET_KEY, cfg.plane_preset_key)
+            settings.setValue(PLANE_PRESET_PARAMS_JSON_KEY, cfg.plane_preset_params_json)
             settings.sync()
         finally:
             del settings
@@ -351,4 +361,6 @@ def _default_config() -> AppConfig:
         online_tts_api_key=DEFAULT_ONLINE_TTS_API_KEY,
         tts_provider=DEFAULT_TTS_PROVIDER,
         minimax_subscription_key=DEFAULT_ONLINE_TTS_API_KEY,
+        plane_preset_key="airplane",
+        plane_preset_params_json="",
     )

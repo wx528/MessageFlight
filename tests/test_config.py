@@ -176,3 +176,19 @@ def test_save_load_flight_kwargs_round_trip(isolated_settings):
     assert ": 4321" in raw or ":4321" in raw, f"expected JSON, got: {raw!r}"
     # A Python repr would use single quotes; JSON uses double quotes
     assert '"fly_bounce"' in raw, f"expected JSON double-quoted key, got: {raw!r}"
+
+
+def test_load_config_default_preset_key(isolated_settings):
+    cfg = load_config()
+    assert cfg.plane_preset_key == "airplane"
+    assert cfg.plane_preset_params_json == ""
+
+
+def test_save_load_preset_round_trip(isolated_settings):
+    cfg = load_config()
+    cfg.plane_preset_key = "ufo"
+    cfg.plane_preset_params_json = '{"disc_radius": 30}'
+    save_config(cfg)
+    loaded = load_config()
+    assert loaded.plane_preset_key == "ufo"
+    assert loaded.plane_preset_params_json == '{"disc_radius": 30}'

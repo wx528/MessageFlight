@@ -12,6 +12,7 @@ from message_flight.config import load_config, save_config
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
 from message_flight.notification_worker import NotificationWorker, WINSOK_AVAILABLE
+from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
 from message_flight.tts_manager import TTSManager
 
@@ -55,6 +56,10 @@ class TrayApplication:
         self.action_settings = QAction("设置...", self.menu)
         self.action_settings.triggered.connect(self._open_settings)
         self.menu.addAction(self.action_settings)
+
+        self.action_preset_editor = QAction("飞船编辑器", self.menu)
+        self.action_preset_editor.triggered.connect(self._open_preset_editor)
+        self.menu.addAction(self.action_preset_editor)
 
         self.menu.addSeparator()
 
@@ -180,6 +185,37 @@ class TrayApplication:
             self.widget.plane.update_colors(**new_cfg.colors)
             self.widget.set_flight_kwargs(**new_cfg.flight_kwargs)
             self.tts.update_config(new_cfg)
+
+    def _open_preset_editor(self):
+        cfg = load_config()
+        dlg = PresetEditorWindow(cfg, self.menu)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            preset_key, params_json = dlg.get_result()
+            cfg.plane_preset_key = preset_key
+            cfg.plane_preset_params_json = params_json
+            save_config(cfg)
+            self._apply_preset_to_widget(preset_key, params_json)
+
+    def _apply_preset_to_widget(self, preset_key: str, params_json: str) -> None:
+        import dataclasses
+        import json
+        from message_flight.plane_presets import get_preset
+        preset = get_preset(preset_key)
+        if params_json:
+            try:
+                data = json.loads(params_json)
+                default = preset.get_default_params()
+                params = dataclasses.replace(
+                    default,
+                    **{k: v for k, v in data.items() if hasattr(default, k)},
+                )
+            except (json.JSONDecodeError, TypeError):
+                params = preset.get_default_params()
+        else:
+            params = preset.get_default_params()
+        self.widget.plane._preset = preset
+        self.widget.plane._params = params
+        self.widget.plane.update()
 
     def _quit(self):
         if self.notifier:

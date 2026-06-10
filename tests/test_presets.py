@@ -1,4 +1,6 @@
 """Tests for PlanePreset ABC and ParamDef dataclass (Task 01)."""
+import dataclasses
+import json
 import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -162,3 +164,26 @@ def test_list_presets_has_four_entries():
     assert len(presets) == 4
     keys = {k for k, _, _ in presets}
     assert keys == {"airplane", "rocket", "ufo", "bird"}
+
+
+def test_all_presets_have_distinct_names():
+    names = [n for _, n, _ in list_presets()]
+    assert len(names) == len(set(names))
+
+
+def test_all_presets_draw_with_default_params():
+    from unittest.mock import MagicMock
+    for key, _, _ in list_presets():
+        preset_obj = get_preset(key)
+        params = preset_obj.get_default_params()
+        painter = MagicMock()
+        preset_obj.draw(painter, params)
+        assert painter.method_calls, f"{key} should call at least one painter method"
+
+
+def test_all_presets_params_json_serializable():
+    for key, _, _ in list_presets():
+        preset_obj = get_preset(key)
+        params = preset_obj.get_default_params()
+        data = dataclasses.asdict(params)
+        json.dumps(data)

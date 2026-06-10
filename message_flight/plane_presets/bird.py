@@ -18,6 +18,8 @@ class BirdParameters:
     beak_color: str = "#FFA500"
     eye_color: str = "#000000"
     wing_flap_speed: float = 4.0
+    banner_attach_x: int = -10
+    banner_attach_y: int = 0
 
 
 class BirdPreset(PlanePreset):
@@ -71,6 +73,8 @@ class BirdPreset(PlanePreset):
             ParamDef("beak_color", "鸟喙颜色", "color", "#FFA500"),
             ParamDef("eye_color", "眼睛颜色", "color", "#000000"),
             ParamDef("wing_flap_speed", "扇翅速度", "float", 4.0, 0.0, 10.0, 0.5),
+            ParamDef("banner_attach_x", "横幅挂载X", "int", -10, -50, 100),
+            ParamDef("banner_attach_y", "横幅挂载Y", "int", 0, -50, 100),
         ]
 
     def get_default_params(self) -> BirdParameters:

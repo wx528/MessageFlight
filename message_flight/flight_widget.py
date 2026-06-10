@@ -255,19 +255,14 @@ class FlightWidget(QWidget):
         return self._paused
 
     def show_notification(self, text: str):
-        """显示一条真实通知，并重置飞行动画让飞机立刻从左侧飞出"""
+        """显示一条真实通知，并重置飞行动画按当前路径模式飞出"""
         self.plane.set_text(text)
-        start_y = self._compute_start_y()
-        end_y = start_y + random.randint(-30, 30)
         self.fly_anim.stop()
-        # show_notification 总是强制单向从左到右（用户行为兼容）
+        # 重置飞行状态
         self._fly_direction = 1
         self._pong_direction = 1
         self._fly_count = 0
         self._fly_stopped = False
-        self.fly_anim.setStartValue(QPoint(-self.plane.width(), start_y))
-        self.fly_anim.setEndValue(QPoint(self.screen_w + 50, end_y))
-        self.fly_anim.start()
+        # 根据当前路径模式重新初始化飞行动画
+        self._setup_fly_animation()
         self.timer.stop()
-        # 不再自动重启 timer（演示轮播已禁用）
-        # QTimer.singleShot(15000, self.timer.start)

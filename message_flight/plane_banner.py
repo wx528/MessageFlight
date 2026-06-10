@@ -43,12 +43,18 @@ class PlaneBanner(QWidget):
         self._facing_direction = 1  # 1 = 朝右, -1 = 朝左
         self.setFixedSize(self._banner_width + 80, 80)
 
+    def _recalculate_size(self) -> None:
+        """Recalculate widget size based on banner width and mount point offset."""
+        attach_x = getattr(self._params, 'banner_attach_x', 0)
+        extra = max(0, -2 * attach_x, attach_x - 80)
+        self.setFixedSize(self._banner_width + 80 + extra, 80)
+
     def set_text(self, text: str):
         self._text = text
         fm = QFontMetrics(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         tw = fm.horizontalAdvance(text) + 40
         self._banner_width = max(200, tw)
-        self.setFixedSize(self._banner_width + 80, 80)
+        self._recalculate_size()
         self.update()
 
     def set_facing_direction(self, direction: int) -> None:
@@ -112,24 +118,46 @@ class PlaneBanner(QWidget):
         """Replace the active preset and its params, then request a repaint."""
         self._preset = preset
         self._params = params
+        self._recalculate_size()
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         float_y = int(self._plane_offset * 6)
-        banner_y = 20 + float_y
+
+        attach_x = getattr(self._params, 'banner_attach_x', 0)
+        attach_y = getattr(self._params, 'banner_attach_y', 35)
+        extra_left = max(0, -attach_x)
 
         if self._facing_direction == 1:
-            # 左→右：横幅在左，飞机在右
-            self._draw_banner(painter, 0, banner_y, tail_on_right=True)
-            self._draw_plane(painter, self._banner_width + 10, 15 + float_y, facing=1)
+            # 左→右：飞船在右，横幅在左
+            plane_x = extra_left + self._banner_width + 10
+            plane_y = 15 + float_y
+
+            mount_x = plane_x + attach_x
+            mount_y = plane_y + attach_y
+
+            bx = mount_x - self._banner_width - 10
+            by = mount_y - self._banner_height // 2
+
+            self._draw_banner(painter, bx, by, tail_on_right=True)
+            self._draw_plane(painter, plane_x, plane_y, facing=1)
         else:
-            # 右→左：飞机在左，横幅在右
-            plane_w = 70  # 飞机绘制区域约 70px 宽
-            gap = 10
-            self._draw_plane(painter, 0, 15 + float_y, facing=-1)
-            self._draw_banner(painter, plane_w + gap, banner_y, tail_on_right=False)
+            # 右→左：飞船在左，横幅在右
+            plane_x = extra_left
+            plane_y = 15 + float_y
+
+            # facing=-1 时 _draw_plane 内部进行了 scale(-1,1) + translate(-70,0)
+            # 局部坐标 (x,y) 在世界坐标中 = (plane_x + 70 - x, plane_y + y)
+            mount_x = plane_x + 70 - attach_x
+            mount_y = plane_y + attach_y
+
+            bx = mount_x + 10
+            by = mount_y - self._banner_height // 2
+
+            self._draw_banner(painter, bx, by, tail_on_right=False)
+            self._draw_plane(painter, plane_x, plane_y, facing=-1)
 
         painter.end()
 

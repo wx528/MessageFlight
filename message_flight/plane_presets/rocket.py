@@ -20,6 +20,8 @@ class RocketParameters:
     fin_color: str = "#8B0000"
     flame_color: str = "#FFA500"
     flame_intensity: float = 1.0
+    banner_attach_x: int = -12
+    banner_attach_y: int = 0
 
 
 class RocketPreset(PlanePreset):
@@ -78,6 +80,8 @@ class RocketPreset(PlanePreset):
             ParamDef("fin_color", "尾翼颜色", "color", "#8B0000"),
             ParamDef("flame_color", "火焰颜色", "color", "#FFA500"),
             ParamDef("flame_intensity", "火焰强度", "float", 1.0, 0.0, 2.0, 0.1),
+            ParamDef("banner_attach_x", "横幅挂载X", "int", -12, -50, 100),
+            ParamDef("banner_attach_y", "横幅挂载Y", "int", 0, -50, 100),
         ]
 
     def get_default_params(self) -> RocketParameters:

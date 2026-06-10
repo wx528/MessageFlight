@@ -4,7 +4,8 @@ import dataclasses
 import json
 from typing import Optional
 
-from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
     QCheckBox,
     QColorDialog,
@@ -29,11 +30,18 @@ from message_flight.plane_presets.base import PlanePreset
 
 
 class PresetPreviewWidget(QWidget):
-    def __init__(self, preset: PlanePreset, params, parent=None):
+    _CENTER_X = 100
+    _CENTER_Y = 75
+    _GRAB_RADIUS = 10
+
+    def __init__(self, preset: PlanePreset, params, on_mount_changed=None, parent=None):
         super().__init__(parent)
         self._preset = preset
         self._params = params
+        self._on_mount_changed = on_mount_changed
+        self._dragging = False
         self.setFixedSize(200, 150)
+        self.setCursor(Qt.CursorShape.CrossCursor)
 
     def update_preset(self, preset) -> None:
         """Replace the active preset and request a repaint."""
@@ -44,11 +52,95 @@ class PresetPreviewWidget(QWidget):
         self._params = params
         self.update()
 
+    def _get_mount(self) -> tuple[int, int]:
+        return (
+            getattr(self._params, "banner_attach_x", 0),
+            getattr(self._params, "banner_attach_y", 0),
+        )
+
+    def _set_mount(self, mx: int, my: int) -> None:
+        if hasattr(self._params, "banner_attach_x"):
+            self._params.banner_attach_x = int(mx)
+        if hasattr(self._params, "banner_attach_y"):
+            self._params.banner_attach_y = int(my)
+        if self._on_mount_changed is not None:
+            self._on_mount_changed(mx, my)
+        self.update()
+
+    # ------------------------------------------------------------------
+    # 鼠标事件
+    # ------------------------------------------------------------------
+    def mousePressEvent(self, event):
+        mx, my = self._world_to_mount(event.pos())
+        cur_mx, cur_my = self._get_mount()
+        dist = ((mx - cur_mx) ** 2 + (my - cur_my) ** 2) ** 0.5
+        if dist < self._GRAB_RADIUS:
+            self._dragging = True
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+        else:
+            self._set_mount(mx, my)
+
+    def mouseMoveEvent(self, event):
+        if self._dragging:
+            mx, my = self._world_to_mount(event.pos())
+            self._set_mount(mx, my)
+
+    def mouseReleaseEvent(self, event):
+        if self._dragging:
+            self._dragging = False
+            self.setCursor(Qt.CursorShape.CrossCursor)
+
+    def _world_to_mount(self, pos) -> tuple[int, int]:
+        return int(pos.x() - self._CENTER_X), int(pos.y() - self._CENTER_Y)
+
+    # ------------------------------------------------------------------
+    # 绘制
+    # ------------------------------------------------------------------
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.translate(100, 75)
+        painter.fillRect(self.rect(), QColor("#f5f5f5"))
+
+        # 轻微网格线
+        pen = QPen(QColor("#e0e0e0"))
+        pen.setWidth(1)
+        painter.setPen(pen)
+        for x in range(0, 201, 20):
+            painter.drawLine(x, 0, x, 150)
+        for y in range(0, 151, 20):
+            painter.drawLine(0, y, 200, y)
+
+        # 飞船原点（中心点）
+        painter.setPen(QPen(QColor("#888888"), 1))
+        painter.drawEllipse(self._CENTER_X - 2, self._CENTER_Y - 2, 4, 4)
+
+        # 绘制飞船（translate 到中心）
+        painter.translate(self._CENTER_X, self._CENTER_Y)
         self._preset.draw(painter, self._params)
+        painter.translate(-self._CENTER_X, -self._CENTER_Y)
+
+        # 挂载点
+        mx, my = self._get_mount()
+        wx = self._CENTER_X + mx
+        wy = self._CENTER_Y + my
+
+        # 虚线连接
+        dash = QPen(QColor("#FF5722"), 1, Qt.PenStyle.DotLine)
+        painter.setPen(dash)
+        painter.drawLine(self._CENTER_X, self._CENTER_Y, wx, wy)
+
+        # 挂载点手柄
+        painter.setPen(QPen(QColor("#D32F2F"), 2))
+        painter.setBrush(QColor("#FF5252"))
+        painter.drawEllipse(wx - 5, wy - 5, 10, 10)
+
+        # 坐标标签
+        painter.setPen(QColor("#333333"))
+        font = QFont("Microsoft YaHei", 8)
+        painter.setFont(font)
+        label = f"({mx}, {my})"
+        painter.drawText(wx + 8, wy + 4, label)
+
         painter.end()
 
 
@@ -99,7 +191,12 @@ class PresetEditorWindow(QDialog):
         scroll.setWidgetResizable(True)
         scroll.setFixedWidth(280)
         middle.addWidget(scroll)
-        self._preview = PresetPreviewWidget(preset_obj, self._params)
+
+        # 预览 + 拖拽回调
+        self._preview = PresetPreviewWidget(
+            preset_obj, self._params,
+            on_mount_changed=self._on_preview_mount_changed,
+        )
         middle.addWidget(self._preview)
         root.addLayout(middle)
 
@@ -111,6 +208,16 @@ class PresetEditorWindow(QDialog):
         root.addWidget(self._button_box)
 
         self._build_param_panel()
+
+    def _on_preview_mount_changed(self, mx: int, my: int) -> None:
+        """预览拖拽时同步更新参数面板中的 SpinBox。"""
+        for name in ("banner_attach_x", "banner_attach_y"):
+            spin = self._param_widgets.get(name)
+            if spin is not None:
+                value = mx if name == "banner_attach_x" else my
+                spin.blockSignals(True)
+                spin.setValue(value)
+                spin.blockSignals(False)
 
     def _refresh_preview(self) -> None:
         self._preview.update_params(self._params)

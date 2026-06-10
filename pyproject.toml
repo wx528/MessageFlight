@@ -1,6 +1,6 @@
 [project]
 name = "messageflight"
-version = "0.1.0"
+version = "0.2.3"
 description = "Let Windows notifications fly across your screen like a little plane."
 readme = "README.md"
 requires-python = ">=3.8"

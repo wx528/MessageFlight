@@ -155,3 +155,10 @@ def test_bird_draw_does_not_crash():
     painter = MagicMock()
     p.draw(painter, p.get_default_params())
     assert painter.drawPath.call_count >= 1
+
+
+def test_list_presets_has_four_entries():
+    presets = list_presets()
+    assert len(presets) == 4
+    keys = {k for k, _, _ in presets}
+    assert keys == {"airplane", "rocket", "ufo", "bird"}

@@ -4,9 +4,15 @@ from typing import Type
 
 from .base import PlanePreset
 from .airplane import AirplanePreset
+from .rocket import RocketPreset
+from .ufo import UFOPreset
+from .bird import BirdPreset
 
 PRESETS: dict[str, Type[PlanePreset]] = {
     "airplane": AirplanePreset,
+    "rocket": RocketPreset,
+    "ufo": UFOPreset,
+    "bird": BirdPreset,
 }
 
 

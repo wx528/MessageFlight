@@ -11,7 +11,7 @@ from message_flight.autostart import is_auto_start_enabled, set_auto_start
 from message_flight.config import load_config, save_config
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
-from message_flight.notification_worker import NotificationWorker, WINSOK_AVAILABLE
+from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
 from message_flight.tts_manager import TTSManager
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class TrayApplication:
-    def __init__(self):
+    def __init__(self) -> None:
         QApplication.setHighDpiScaleFactorRoundingPolicy(
             Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
         )
@@ -199,6 +199,7 @@ class TrayApplication:
     def _apply_preset_to_widget(self, preset_key: str, params_json: str) -> None:
         import dataclasses
         import json
+
         from message_flight.plane_presets import get_preset
         preset = get_preset(preset_key)
         if params_json:

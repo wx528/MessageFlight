@@ -1,8 +1,6 @@
 """Tests for the TTS notification reader (Task 04)."""
 from unittest.mock import patch
 
-import pytest
-
 from message_flight.tts import MiniMaxReader, SAPIReader, TTSReader
 
 
@@ -40,7 +38,7 @@ def test_custom_title_template():
 def test_template_format():
     """Template formatting must insert the message into the placeholder."""
     reader = TTSReader(enabled=False, title_template="您有新消息了。{message}")
-    assert "您有新消息了。hello" == reader._title_template.format(message="hello")
+    assert reader._title_template.format(message="hello") == "您有新消息了。hello"
 
 
 def test_minimax_reader_init():

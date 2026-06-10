@@ -1,11 +1,12 @@
 """Tests for FlightWidget customization (Task 01) + flight mode presets (Task 06)."""
 import os
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import sys
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from PyQt6.QtWidgets import QApplication
 
 from message_flight.config import FLIGHT_MODE_NAMES, FLIGHT_MODES
@@ -68,17 +69,17 @@ def test_fly_path_horizontal_explicit(qapp):
     assert widget._fly_path == "horizontal"
 
 
-def test_fly_path_zigzag_raises_not_implemented(qapp):
-    """zigzag 路径必须 raise NotImplementedError"""
-    with pytest.raises(NotImplementedError, match="zigzag"):
+def test_fly_path_zigzag_raises_value_error(qapp):
+    """zigzag 路径不再支持，必须 raise ValueError"""
+    with pytest.raises(ValueError, match="fly_path must be one of"):
         _make_widget(qapp, fly_path="zigzag_top_down")
-    with pytest.raises(NotImplementedError, match="zigzag"):
+    with pytest.raises(ValueError, match="fly_path must be one of"):
         _make_widget(qapp, fly_path="zigzag_bottom_up")
 
 
-def test_fly_path_around_raises_not_implemented(qapp):
-    """around 路径必须 raise NotImplementedError"""
-    with pytest.raises(NotImplementedError, match="around"):
+def test_fly_path_around_raises_value_error(qapp):
+    """around 路径不再支持，必须 raise ValueError"""
+    with pytest.raises(ValueError, match="fly_path must be one of"):
         _make_widget(qapp, fly_path="around")
 
 
@@ -112,7 +113,6 @@ def test_compute_start_y_uses_ratio_and_jitter(qapp):
     """_compute_start_y 应基于 initial_y_ratio 和 vertical_jitter"""
     widget = _make_widget(qapp, initial_y_ratio=0.5, vertical_jitter=10)
     widget.screen_h = 1000
-    base = int(1000 * 0.5)  # 500
     for _ in range(50):
         y = widget._compute_start_y()
         assert 490 <= y <= 510
@@ -168,9 +168,9 @@ def test_flight_widget_accepts_plane_colors_kwarg(qapp):
         "thruster_inner_color": "#888888",
     }
     widget = _make_widget(qapp, plane_colors=palette)
-    assert widget.plane._plane_color.name().lower() == "#00ff00"
-    assert widget.plane._wing_color.name().lower() == "#111111"
-    assert widget.plane._thruster_inner_color.name().lower() == "#888888"
+    assert widget.plane._params.plane_color.lower() == "#00ff00"
+    assert widget.plane._params.wing_color.lower() == "#111111"
+    assert widget.plane._params.thruster_inner_color.lower() == "#888888"
 
 
 def test_flight_widget_accepts_all_flight_mode_kwargs(qapp):

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Type
 
-from .base import PlanePreset
 from .airplane import AirplanePreset
+from .base import PlanePreset
+from .bird import BirdPreset
 from .rocket import RocketPreset
 from .ufo import UFOPreset
-from .bird import BirdPreset
 
 PRESETS: dict[str, Type[PlanePreset]] = {
     "airplane": AirplanePreset,

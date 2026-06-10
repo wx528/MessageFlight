@@ -1,8 +1,8 @@
 """Custom QWidget that draws a plane with a notification banner."""
 from typing import Optional
 
-from PyQt6.QtCore import Qt, pyqtProperty
-from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QFontMetrics
+from PyQt6.QtCore import pyqtProperty
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath
 from PyQt6.QtWidgets import QWidget
 
 from message_flight.plane_presets import get_preset
@@ -27,27 +27,18 @@ class PlaneBanner(QWidget):
         self._banner_width = 280
         self._banner_height = 50
         self._text = ""
-        self._plane_color = QColor(plane_color)
-        self._wing_color = QColor(wing_color)
-        self._accent_color = QColor(accent_color)
-        self._decor_color = QColor(decor_color)
-        self._banner_color = QColor(banner_color)
         self._text_color = QColor(text_color)
-        self._thruster_outer_color = QColor(thruster_outer_color)
-        self._thruster_middle_color = QColor(thruster_middle_color)
-        self._thruster_inner_color = QColor(thruster_inner_color)
-        from message_flight.plane_presets.airplane import AirplaneParameters
         self._preset = get_preset("airplane")
-        self._params = AirplaneParameters(
-            plane_color=plane_color,
-            wing_color=wing_color,
-            accent_color=accent_color,
-            decor_color=decor_color,
-            banner_color=banner_color,
-            thruster_outer_color=thruster_outer_color,
-            thruster_middle_color=thruster_middle_color,
-            thruster_inner_color=thruster_inner_color,
-        )
+        self._params = self._preset.get_default_params()
+        # Apply any color overrides from constructor
+        for attr_name in (
+            "plane_color", "wing_color", "accent_color", "decor_color",
+            "banner_color", "thruster_outer_color", "thruster_middle_color",
+            "thruster_inner_color",
+        ):
+            val = locals()[attr_name]
+            if hasattr(self._params, attr_name):
+                setattr(self._params, attr_name, val)
         self._plane_offset = 0.0
         self._facing_direction = 1  # 1 = 朝右, -1 = 朝左
         self.setFixedSize(self._banner_width + 80, 80)
@@ -59,6 +50,16 @@ class PlaneBanner(QWidget):
         self._banner_width = max(200, tw)
         self.setFixedSize(self._banner_width + 80, 80)
         self.update()
+
+    def set_facing_direction(self, direction: int) -> None:
+        """Set the facing direction (1 = right, -1 = left) and trigger repaint."""
+        self._facing_direction = direction
+        self.update()
+
+    def _get_color(self, name: str) -> QColor:
+        """Return a QColor for the given attribute name from _params."""
+        value = getattr(self._params, name, "#FFFFFF")
+        return QColor(value)
 
     def get_plane_offset(self):
         return self._plane_offset
@@ -90,24 +91,21 @@ class PlaneBanner(QWidget):
         keys. A single ``update()`` is issued at the end so the repaint is
         coalesced.
         """
-        mapping = {
-            "plane_color": ("_plane_color", plane_color),
-            "wing_color": ("_wing_color", wing_color),
-            "accent_color": ("_accent_color", accent_color),
-            "decor_color": ("_decor_color", decor_color),
-            "banner_color": ("_banner_color", banner_color),
-            "text_color": ("_text_color", text_color),
-            "thruster_outer_color": ("_thruster_outer_color", thruster_outer_color),
-            "thruster_middle_color": ("_thruster_middle_color", thruster_middle_color),
-            "thruster_inner_color": ("_thruster_inner_color", thruster_inner_color),
+        params_mapping = {
+            "plane_color": plane_color,
+            "wing_color": wing_color,
+            "accent_color": accent_color,
+            "decor_color": decor_color,
+            "banner_color": banner_color,
+            "thruster_outer_color": thruster_outer_color,
+            "thruster_middle_color": thruster_middle_color,
+            "thruster_inner_color": thruster_inner_color,
         }
-        for attr, value in mapping.values():
-            if value is not None:
-                setattr(self, attr, QColor(value))
-                if hasattr(self, "_params"):
-                    params_attr = attr.lstrip("_")
-                    if hasattr(self._params, params_attr):
-                        setattr(self._params, params_attr, value)
+        for attr, value in params_mapping.items():
+            if value is not None and hasattr(self._params, attr):
+                setattr(self._params, attr, value)
+        if text_color is not None:
+            self._text_color = QColor(text_color)
         self.update()
 
     def apply_preset(self, preset, params) -> None:
@@ -171,7 +169,7 @@ class PlaneBanner(QWidget):
             path.lineTo(tail_x, tail_y + 6)
         path.closeSubpath()
 
-        painter.fillPath(path, self._banner_color)
+        painter.fillPath(path, self._get_color("banner_color"))
 
         painter.setPen(self._text_color)
         font = QFont("Microsoft YaHei", 12, QFont.Weight.Bold)

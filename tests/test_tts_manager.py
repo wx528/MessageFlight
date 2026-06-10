@@ -1,4 +1,3 @@
-import pytest
 
 from message_flight.config import AppConfig
 

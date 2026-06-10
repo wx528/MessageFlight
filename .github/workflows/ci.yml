@@ -9,7 +9,7 @@ on:
 jobs:
   lint:
     name: Static checks (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
@@ -25,11 +25,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Compile-check message_flight.py
-        run: python -m py_compile message_flight.py
+      - name: Install dependencies
+        run: |
+          pip install --pre .
+          pip install pytest
 
-      - name: AST-parse message_flight.py
-        run: python -c "import ast; ast.parse(open('message_flight.py').read())"
+      - name: Compile-check all Python files
+        run: |
+          Get-ChildItem -Recurse -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
+
+      - name: Run tests
+        run: pytest tests/ -v
 
       - name: Validate pyproject.toml
         run: |

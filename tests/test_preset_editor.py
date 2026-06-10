@@ -1,13 +1,15 @@
 import os
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import sys
+
 import pytest
 from PyQt6.QtWidgets import QApplication
 
-from message_flight.preset_editor import PresetPreviewWidget, PresetEditorWindow
 from message_flight.config import AppConfig
 from message_flight.plane_presets import get_preset
+from message_flight.preset_editor import PresetEditorWindow, PresetPreviewWidget
 
 
 @pytest.fixture(scope="module")

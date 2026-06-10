@@ -119,8 +119,13 @@ class MiniMaxReader(TTSReader, QObject):
         self._network = QNetworkAccessManager()
         self._active_audio_files: set[str] = set()  # Track temp files for cleanup
         self._last_text = ""  # Last text sent to MiniMax, for error fallback
+        self._reply_text_map: dict[int, str] = {}  # id(reply) -> original text
 
         self._network.finished.connect(self._on_reply_finished)
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app is not None:
+            app.aboutToQuit.connect(self.cleanup)
         logger.info("MiniMaxReader: initialized with voice_id=%s", voice_id)
 
     def _speak_impl(self, text: str) -> None:
@@ -156,23 +161,26 @@ class MiniMaxReader(TTSReader, QObject):
         }
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         logger.debug("MiniMaxReader._speak_impl: request body=%s", body.decode("utf-8")[:200])
-        self._network.post(request, body)
+        reply = self._network.post(request, body)
+        self._reply_text_map[id(reply)] = text
 
     def _on_reply_finished(self, reply: QNetworkReply) -> None:
         status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
         logger.info("MiniMaxReader._on_reply_finished: HTTP status=%s", status_code)
 
+        original_text = self._reply_text_map.pop(id(reply), self._last_text)
+
         if reply.error() != QNetworkReply.NetworkError.NoError:
             err_msg = f"MiniMax network error: {reply.errorString()}"
             logger.error("MiniMaxReader._on_reply_finished: %s", err_msg)
-            self.error_occurred.emit(err_msg, self._last_text)
+            self.error_occurred.emit(err_msg, original_text)
             reply.deleteLater()
             return
 
         data = reply.readAll()
         if data.isEmpty():
             logger.error("MiniMaxReader._on_reply_finished: empty response")
-            self.error_occurred.emit("MiniMax returned empty response", self._last_text)
+            self.error_occurred.emit("MiniMax returned empty response", original_text)
             reply.deleteLater()
             return
 
@@ -182,7 +190,7 @@ class MiniMaxReader(TTSReader, QObject):
             response_json = json.loads(response_text)
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
             logger.error("MiniMaxReader._on_reply_finished: failed to parse response: %s", e)
-            self.error_occurred.emit(f"MiniMax response parse error: {e}", self._last_text)
+            self.error_occurred.emit(f"MiniMax response parse error: {e}", original_text)
             reply.deleteLater()
             return
 
@@ -193,7 +201,7 @@ class MiniMaxReader(TTSReader, QObject):
             status_msg = base_resp.get("status_msg", "unknown error")
             err_msg = f"MiniMax API error {status_code_api}: {status_msg}"
             logger.error("MiniMaxReader._on_reply_finished: %s", err_msg)
-            self.error_occurred.emit(err_msg, self._last_text)
+            self.error_occurred.emit(err_msg, original_text)
             reply.deleteLater()
             return
 
@@ -219,10 +227,10 @@ class MiniMaxReader(TTSReader, QObject):
         audio_path = os.path.join(tempfile.gettempdir(), f"messageflight_{uuid.uuid4().hex}.mp3")
         with open(audio_path, "wb") as f:
             f.write(self._buffer.data())
-        
+
         self._active_audio_files.add(audio_path)
         logger.info("MiniMaxReader._on_reply_finished: saved audio to %s (%d bytes)", audio_path, len(audio_bytes))
-        
+
         # Use pygame.mixer to play audio (reliable cross-platform MP3 playback)
         self._play_audio_with_pygame(audio_path)
         reply.deleteLater()
@@ -231,25 +239,25 @@ class MiniMaxReader(TTSReader, QObject):
         """Play audio file using pygame.mixer."""
         try:
             import pygame
-            
+
             # Initialize pygame mixer if not already initialized
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=32000)
                 logger.info("MiniMaxReader: pygame.mixer initialized")
-            
+
             # Load and play the audio
             sound = pygame.mixer.Sound(audio_path)
             sound.set_volume(self._vol)
             sound.play()
             logger.info("MiniMaxReader: playing audio from %s", audio_path)
-            
+
             # Track this file for cleanup
             timer = QTimer(self)
             timer.setSingleShot(True)
             # Capture audio_path by value to avoid closure issues
             timer.timeout.connect(lambda _path=audio_path, _timer=timer: self._cleanup_after_playback(_path, _timer))
             timer.start(100)  # Check every 100ms
-            
+
         except Exception as e:
             logger.error("MiniMaxReader: failed to play audio with pygame: %s", e)
             self._remove_audio_file(audio_path)
@@ -282,3 +290,9 @@ class MiniMaxReader(TTSReader, QObject):
                 logger.debug("MiniMaxReader: removed temp file %s", audio_path)
             except OSError as e:
                 logger.warning("MiniMaxReader: failed to remove temp file %s: %s", audio_path, e)
+
+    def cleanup(self) -> None:
+        """Remove all active temp audio files. Called on application exit."""
+        for path in list(self._active_audio_files):
+            self._remove_audio_file(path)
+        self._active_audio_files.clear()

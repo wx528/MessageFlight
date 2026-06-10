@@ -9,25 +9,24 @@ is harder for users to find and edit by hand).
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from PyQt6.QtCore import QSettings
-
 
 ORG = "MessageFlight"
 APP = "MessageFlight"
 SETTINGS_KEY = "color_scheme"
 FLIGHT_KWARG_KEY = "flight_kwargs_json"
 FLIGHT_MODE_KEY = "flight_mode"
-ONLINE_TTS_API_KEY = "online_tts_api_key"
 MINIMAX_SUBSCRIPTION_KEY = "minimax_subscription_key"
 PLANE_PRESET_KEY = "plane_preset_key"
 PLANE_PRESET_PARAMS_JSON_KEY = "plane_preset_params_json"
 
-DEFAULT_ONLINE_TTS_API_KEY = ""
 TTS_PROVIDER_KEY = "tts_provider"
 DEFAULT_TTS_PROVIDER = "sapi"
 VALID_TTS_PROVIDERS = ("sapi", "minimax")
@@ -162,9 +161,9 @@ def validate_flight_kwargs(kwargs: dict[str, Any]) -> None:
             if not isinstance(value, str):
                 raise ValueError(f"fly_path must be str, got {type(value).__name__}")
         elif key in ("fly_loop_count", "fly_duration_ms", "float_duration_ms",
-                     "vertical_jitter", "notification_interval_ms"):
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise ValueError(f"{key} must be int, got {type(value).__name__}")
+                     "vertical_jitter", "notification_interval_ms") and \
+                (isinstance(value, bool) or not isinstance(value, (int, float))):
+            raise ValueError(f"{key} must be int, got {type(value).__name__}")
 
 
 @dataclass
@@ -177,9 +176,8 @@ class AppConfig:
     flight_kwargs: dict[str, Any] = field(
         default_factory=lambda: dict(FLIGHT_MODES[DEFAULT_FLIGHT_MODE])
     )
-    online_tts_api_key: str = DEFAULT_ONLINE_TTS_API_KEY
     tts_provider: str = DEFAULT_TTS_PROVIDER
-    minimax_subscription_key: str = DEFAULT_ONLINE_TTS_API_KEY
+    minimax_subscription_key: str = ""
     plane_preset_key: str = "airplane"
     plane_preset_params_json: str = ""
 
@@ -243,10 +241,8 @@ tts_provider=sapi
 ; 注意: 这是订阅 Key，不是按量计费的 API Key
 minimax_subscription_key=your-subscription-key-here
 '''
-    try:
+    with contextlib.suppress(OSError):
         example_path.write_text(example_content, encoding="utf-8")
-    except OSError:
-        pass
 
 
 def load_config() -> AppConfig:
@@ -291,25 +287,21 @@ def load_config() -> AppConfig:
                     file=sys.stderr,
                 )
                 flight_kwargs = dict(default_kwargs)
-        online_tts_api_key = str(settings.value(ONLINE_TTS_API_KEY, DEFAULT_ONLINE_TTS_API_KEY))
         tts_provider = str(settings.value(TTS_PROVIDER_KEY, DEFAULT_TTS_PROVIDER))
         if tts_provider not in VALID_TTS_PROVIDERS:
             tts_provider = DEFAULT_TTS_PROVIDER
-        minimax_subscription_key = str(settings.value(MINIMAX_SUBSCRIPTION_KEY, DEFAULT_ONLINE_TTS_API_KEY))
+        minimax_subscription_key = str(settings.value(MINIMAX_SUBSCRIPTION_KEY, ""))
         plane_preset_key = str(settings.value(PLANE_PRESET_KEY, "airplane"))
         plane_preset_params_json = str(settings.value(PLANE_PRESET_PARAMS_JSON_KEY, ""))
     except Exception as e:
         print(f"load_config: failed to read keys ({e!r}); using defaults", file=sys.stderr)
         return _default_config()
-    finally:
-        del settings
 
     return AppConfig(
         theme_name=theme_name,
         colors=colors,
         flight_mode=flight_mode,
         flight_kwargs=flight_kwargs,
-        online_tts_api_key=online_tts_api_key,
         tts_provider=tts_provider,
         minimax_subscription_key=minimax_subscription_key,
         plane_preset_key=plane_preset_key,
@@ -332,20 +324,16 @@ def save_config(cfg: AppConfig) -> None:
             flight_kwargs_to_save = dict(mode)
 
         settings = _new_settings()
-        try:
-            settings.setValue(SETTINGS_KEY, cfg.theme_name)
-            for key, value in cfg.colors.items():
-                settings.setValue(key, value)
-            settings.setValue(FLIGHT_MODE_KEY, cfg.flight_mode)
-            settings.setValue(FLIGHT_KWARG_KEY, json.dumps(flight_kwargs_to_save))
-            settings.setValue(ONLINE_TTS_API_KEY, cfg.online_tts_api_key)
-            settings.setValue(TTS_PROVIDER_KEY, cfg.tts_provider)
-            settings.setValue(MINIMAX_SUBSCRIPTION_KEY, cfg.minimax_subscription_key)
-            settings.setValue(PLANE_PRESET_KEY, cfg.plane_preset_key)
-            settings.setValue(PLANE_PRESET_PARAMS_JSON_KEY, cfg.plane_preset_params_json)
-            settings.sync()
-        finally:
-            del settings
+        settings.setValue(SETTINGS_KEY, cfg.theme_name)
+        for key, value in cfg.colors.items():
+            settings.setValue(key, value)
+        settings.setValue(FLIGHT_MODE_KEY, cfg.flight_mode)
+        settings.setValue(FLIGHT_KWARG_KEY, json.dumps(flight_kwargs_to_save))
+        settings.setValue(TTS_PROVIDER_KEY, cfg.tts_provider)
+        settings.setValue(MINIMAX_SUBSCRIPTION_KEY, cfg.minimax_subscription_key)
+        settings.setValue(PLANE_PRESET_KEY, cfg.plane_preset_key)
+        settings.setValue(PLANE_PRESET_PARAMS_JSON_KEY, cfg.plane_preset_params_json)
+        settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)
 
@@ -358,9 +346,8 @@ def _default_config() -> AppConfig:
         colors=dict(THEMES[DEFAULT_THEME]),
         flight_mode=DEFAULT_FLIGHT_MODE,
         flight_kwargs=dict(mode),
-        online_tts_api_key=DEFAULT_ONLINE_TTS_API_KEY,
         tts_provider=DEFAULT_TTS_PROVIDER,
-        minimax_subscription_key=DEFAULT_ONLINE_TTS_API_KEY,
+        minimax_subscription_key="",
         plane_preset_key="airplane",
         plane_preset_params_json="",
     )

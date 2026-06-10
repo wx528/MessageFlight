@@ -4,8 +4,8 @@ import asyncio
 from PyQt6.QtCore import QThread, pyqtSignal
 
 try:
+    from winsdk.windows.ui.notifications import KnownNotificationBindings, NotificationKinds
     from winsdk.windows.ui.notifications.management import UserNotificationListener
-    from winsdk.windows.ui.notifications import NotificationKinds, KnownNotificationBindings
     WINSOK_AVAILABLE = True
 except ImportError:
     WINSOK_AVAILABLE = False
@@ -16,7 +16,7 @@ class NotificationWorker(QThread):
     notification_received = pyqtSignal(str, str)  # app_name, message_text
     access_status_changed = pyqtSignal(int)  # 0=Unspecified, 1=Allowed, 2=Denied
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._running = True
         self._seen_ids = set()
@@ -80,7 +80,7 @@ class NotificationWorker(QThread):
                     it = iter(texts)
                     while it.has_current:
                         lines.append(it.current.text)
-                        next(it, None)
+                        it.move_next()
 
                 if lines:
                     result.append({

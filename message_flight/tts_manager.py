@@ -6,7 +6,7 @@ from typing import Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from message_flight.config import AppConfig, VALID_TTS_PROVIDERS
+from message_flight.config import AppConfig
 from message_flight.tts import MiniMaxReader, SAPIReader, TTSReader
 
 logger = logging.getLogger(__name__)

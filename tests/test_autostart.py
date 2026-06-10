@@ -2,7 +2,7 @@
 import os
 import sys
 
-from message_flight.autostart import _startup_folder, _shortcut_path, _exe_path
+from message_flight.autostart import _exe_path, _shortcut_path, _startup_folder
 
 
 def test_startup_folder_uses_appdata():

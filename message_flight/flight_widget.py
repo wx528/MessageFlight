@@ -1,14 +1,13 @@
 """Main flight widget that animates the plane across the screen."""
 import random
 
-from PyQt6.QtCore import Qt, QPropertyAnimation, QPoint, QEasingCurve, QTimer
+from PyQt6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.plane_banner import PlaneBanner
 
-
-_VALID_FLY_PATHS = ("horizontal", "vertical_pong", "zigzag_top_down", "zigzag_bottom_up", "around")
+_VALID_FLY_PATHS = ("horizontal", "vertical_pong")
 
 
 class FlightWidget(QWidget):
@@ -28,7 +27,7 @@ class FlightWidget(QWidget):
         re_flight_jitter_min_ratio: float = -1.0,
         notification_interval_ms: int = 5000,
         plane_colors: dict = None,
-    ):
+    ) -> None:
         super().__init__()
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -67,12 +66,6 @@ class FlightWidget(QWidget):
             raise ValueError(
                 f"fly_path must be one of {_VALID_FLY_PATHS}, got {self._fly_path!r}"
             )
-        if self._fly_path in ("zigzag_top_down", "zigzag_bottom_up"):
-            raise NotImplementedError(
-                f"{self._fly_path} path not implemented in this task"
-            )
-        if self._fly_path == "around":
-            raise NotImplementedError("around path not implemented in this task")
 
         # 飞行状态
         self._fly_count = 0
@@ -189,8 +182,7 @@ class FlightWidget(QWidget):
                 new_start_x = -self.plane.width()
                 new_end_x = self.screen_w + 50
                 self._fly_direction = 1
-            self.plane._facing_direction = self._fly_direction
-            self.plane.update()
+            self.plane.set_facing_direction(self._fly_direction)
             end_y = start_y + random.randint(-30, 30)
             self.plane.move(new_start_x, start_y)
             self.fly_anim.setStartValue(QPoint(new_start_x, start_y))
@@ -238,9 +230,7 @@ class FlightWidget(QWidget):
         # 重置飞行状态，用新参数重新开始
         self._fly_count = 0
         self._fly_direction = 1
-        self.plane._facing_direction = 1
-        self.plane.update()
-        self._fly_count = 0
+        self.plane.set_facing_direction(1)
         self._fly_stopped = False
         if hasattr(self, "fly_anim"):
             self.fly_anim.stop()

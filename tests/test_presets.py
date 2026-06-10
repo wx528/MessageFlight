@@ -2,9 +2,11 @@
 import dataclasses
 import json
 import os
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+
 from message_flight.plane_presets.base import ParamDef, PlanePreset
 
 
@@ -30,7 +32,7 @@ def test_plane_preset_is_abstract():
         PlanePreset()
 
 
-from message_flight.plane_presets.airplane import AirplanePreset, AirplaneParameters
+from message_flight.plane_presets.airplane import AirplaneParameters, AirplanePreset  # noqa: E402
 
 
 def test_airplane_preset_has_name_and_icon():
@@ -70,7 +72,7 @@ def test_airplane_parameters_is_dataclass():
     assert dataclasses.is_dataclass(AirplaneParameters)
 
 
-from message_flight.plane_presets import get_preset, list_presets
+from message_flight.plane_presets import get_preset, list_presets  # noqa: E402
 
 
 def test_get_preset_returns_airplane():
@@ -88,7 +90,7 @@ def test_list_presets_includes_airplane():
     assert "airplane" in keys
 
 
-from message_flight.plane_presets.rocket import RocketPreset, RocketParameters
+from message_flight.plane_presets.rocket import RocketParameters, RocketPreset  # noqa: E402
 
 
 def test_rocket_preset_has_name_and_icon():
@@ -112,7 +114,7 @@ def test_rocket_draw_does_not_crash():
     assert painter.drawPath.call_count >= 1 or painter.drawRect.call_count >= 1
 
 
-from message_flight.plane_presets.ufo import UFOPreset, UFOParameters
+from message_flight.plane_presets.ufo import UFOParameters, UFOPreset  # noqa: E402
 
 
 def test_ufo_preset_has_name_and_icon():
@@ -136,7 +138,7 @@ def test_ufo_draw_does_not_crash():
     assert painter.drawEllipse.call_count >= 1
 
 
-from message_flight.plane_presets.bird import BirdPreset, BirdParameters
+from message_flight.plane_presets.bird import BirdParameters, BirdPreset  # noqa: E402
 
 
 def test_bird_preset_has_name_and_icon():

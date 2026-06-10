@@ -6,16 +6,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import sys
 
 import pytest
-
-from PyQt6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLineEdit, QPushButton
+from PyQt6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QPushButton
 
 from message_flight.config import (
+    DEFAULT_THEME,
     FLIGHT_MODE_NAMES,
     FLIGHT_MODES,
-    AppConfig,
-    DEFAULT_FLIGHT_MODE,
-    DEFAULT_THEME,
     THEMES,
+    AppConfig,
 )
 from message_flight.settings_dialog import SettingsDialog
 

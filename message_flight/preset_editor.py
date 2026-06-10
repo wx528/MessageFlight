@@ -4,7 +4,6 @@ import dataclasses
 import json
 from typing import Optional
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -36,6 +35,11 @@ class PresetPreviewWidget(QWidget):
         self._params = params
         self.setFixedSize(200, 150)
 
+    def update_preset(self, preset) -> None:
+        """Replace the active preset and request a repaint."""
+        self._preset = preset
+        self.update()
+
     def update_params(self, params) -> None:
         self._params = params
         self.update()
@@ -49,7 +53,7 @@ class PresetPreviewWidget(QWidget):
 
 
 class PresetEditorWindow(QDialog):
-    def __init__(self, cfg: AppConfig, parent: Optional[QWidget] = None):
+    def __init__(self, cfg: AppConfig, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("飞船编辑器")
         self.setModal(True)
@@ -117,7 +121,7 @@ class PresetEditorWindow(QDialog):
         preset_obj = get_preset(key)
         self._params = preset_obj.get_default_params()
         self._build_param_panel()
-        self._preview._preset = preset_obj
+        self._preview.update_preset(preset_obj)
         self._refresh_preview()
 
     def _build_param_panel(self) -> None:

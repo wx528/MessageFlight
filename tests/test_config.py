@@ -1,7 +1,5 @@
 """Tests for the persistent AppConfig (Task 05) + FlightModeConfig (Task 06)."""
 import os
-import sys
-import tempfile
 
 import pytest
 
@@ -15,7 +13,6 @@ from message_flight.config import (
     FLIGHT_MODE_NAMES,
     FLIGHT_MODES,
     ORG,
-    SETTINGS_KEY,
     THEMES,
     AppConfig,
     load_config,

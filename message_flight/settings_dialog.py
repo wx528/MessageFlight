@@ -1,6 +1,8 @@
 """Modal settings dialog for editing the 9-color plane/banner palette and the flight mode preset."""
 from __future__ import annotations
 
+from typing import Optional
+
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -16,14 +18,13 @@ from PyQt6.QtWidgets import (
 )
 
 from message_flight.config import (
+    DEFAULT_THEME,
     FLIGHT_MODE_NAMES,
     FLIGHT_MODES,
+    THEMES,
     VALID_FLY_PATHS,
     AppConfig,
-    DEFAULT_THEME,
-    THEMES,
 )
-
 
 # Human-readable label + the matching key in THEMES / AppConfig.colors
 _COLOR_ROWS: tuple[tuple[str, str], ...] = (
@@ -54,7 +55,7 @@ class SettingsDialog(QDialog):
     and then forward the new colors to ``PlaneBanner.update_colors``.
     """
 
-    def __init__(self, initial: AppConfig, parent: QWidget | None = None):
+    def __init__(self, initial: AppConfig, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setWindowTitle("MessageFlight 设置")
         self.setModal(True)
@@ -182,7 +183,6 @@ class SettingsDialog(QDialog):
             colors=colors,
             flight_mode=self._current_flight_mode,
             flight_kwargs=dict(self._current_flight_kwargs),
-            online_tts_api_key=self._api_key_edit.text(),
             tts_provider=self._provider_combo.currentText(),
             minimax_subscription_key=self._api_key_edit.text(),
         )

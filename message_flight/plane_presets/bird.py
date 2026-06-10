@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import time
 from dataclasses import dataclass
 
 from PyQt6.QtCore import Qt
@@ -25,10 +24,14 @@ class BirdPreset(PlanePreset):
     name = "小鸟"
     icon = "🐦"
 
+    def __init__(self):
+        self._animation_time = 0.0
+
     def draw(self, painter: QPainter, params: BirdParameters) -> None:
         bs = params.body_size
         ws = params.wing_span
-        phase = (math.sin(time.time() * params.wing_flap_speed) + 1.0) / 2.0
+        self._animation_time += 0.016  # ~60fps assumption
+        phase = (math.sin(self._animation_time * params.wing_flap_speed) + 1.0) / 2.0
         wing_offset = int(ws // 2 * phase)
         painter.save()
         painter.setPen(Qt.PenStyle.NoPen)

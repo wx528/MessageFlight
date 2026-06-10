@@ -108,6 +108,9 @@ class PresetEditorWindow(QDialog):
 
         self._build_param_panel()
 
+    def _refresh_preview(self) -> None:
+        self._preview.update_params(self._params)
+
     def _on_preset_changed(self, index: int) -> None:
         key = self._preset_combo.itemData(index)
         self._preset_key = key
@@ -115,7 +118,7 @@ class PresetEditorWindow(QDialog):
         self._params = preset_obj.get_default_params()
         self._build_param_panel()
         self._preview._preset = preset_obj
-        self._preview.update_params(self._params)
+        self._refresh_preview()
 
     def _build_param_panel(self) -> None:
         while self._param_layout.count():
@@ -139,17 +142,17 @@ class PresetEditorWindow(QDialog):
                     f"background-color: {qc.name() if qc.isValid() else '#888888'};"
                 )
 
-                def make_picker(_edit=edit, _swatch=swatch, _n=param_def.name):
+                def make_picker(_edit=edit, _swatch=swatch, _n=param_def.name, _label=param_def.label):
                     def open_picker():
                         current = QColor(_edit.text())
-                        chosen = QColorDialog.getColor(current, self, f"选择 {_n}")
+                        chosen = QColorDialog.getColor(current, self, f"选择 {_label}")
                         if chosen.isValid():
                             _edit.setText(chosen.name())
                             _swatch.setStyleSheet(
                                 f"background-color: {chosen.name()};"
                             )
                             setattr(self._params, _n, chosen.name())
-                            self._preview.update_params(self._params)
+                            self._refresh_preview()
                     return open_picker
                 picker_btn = QPushButton("…")
                 picker_btn.setFixedWidth(30)
@@ -203,19 +206,19 @@ class PresetEditorWindow(QDialog):
         if qc.isValid():
             swatch.setStyleSheet(f"background-color: {qc.name()};")
         setattr(self._params, name, text)
-        self._preview.update_params(self._params)
+        self._refresh_preview()
 
     def _on_int_changed(self, name, value) -> None:
         setattr(self._params, name, int(value))
-        self._preview.update_params(self._params)
+        self._refresh_preview()
 
     def _on_float_changed(self, name, value) -> None:
         setattr(self._params, name, float(value))
-        self._preview.update_params(self._params)
+        self._refresh_preview()
 
     def _on_bool_changed(self, name, value) -> None:
         setattr(self._params, name, bool(value))
-        self._preview.update_params(self._params)
+        self._refresh_preview()
 
     def get_result(self) -> tuple[str, str]:
         data = dataclasses.asdict(self._params)

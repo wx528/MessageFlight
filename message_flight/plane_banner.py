@@ -45,11 +45,13 @@ class PlaneBanner(QWidget):
 
     def _generate_plane_cache(self) -> None:
         """Render the plane preset to an off-screen pixmap for fast blitting."""
-        size = 80
+        size = 100
         self._plane_cache = QPixmap(size, size)
         self._plane_cache.fill(Qt.GlobalColor.transparent)
         painter = QPainter(self._plane_cache)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        # Translate by (20,20) so negative coordinates (e.g. bird wings) don't get clipped
+        painter.translate(20, 20)
         rotation = getattr(self._params, 'rotation', 0.0)
         if rotation != 0.0:
             painter.translate(35, 40)
@@ -62,7 +64,7 @@ class PlaneBanner(QWidget):
         """Recalculate widget size based on banner width and mount point offset."""
         attach_x = getattr(self._params, 'banner_attach_x', 0)
         extra = max(0, -2 * attach_x, attach_x - 80)
-        self.setFixedSize(self._banner_width + 80 + extra, 80)
+        self.setFixedSize(self._banner_width + 100 + extra, 100)
 
     def set_text(self, text: str):
         self._text = text
@@ -81,7 +83,7 @@ class PlaneBanner(QWidget):
             plane_x = extra_left + self._banner_width + 10
         else:
             plane_x = extra_left
-        return QRect(plane_x, 15 + float_y, 80, 80)
+        return QRect(plane_x, 35 + float_y, 100, 100)
 
     def _banner_rect(self) -> QRect:
         """Return the bounding rect of the banner area."""
@@ -94,9 +96,9 @@ class PlaneBanner(QWidget):
             bx = mount_x - self._banner_width - 10
         else:
             plane_x = extra_left
-            mount_x = plane_x + 70 - attach_x
+            mount_x = plane_x + 100 - attach_x
             bx = mount_x + 10
-        by = 15 + float_y + getattr(self._params, 'banner_attach_y', 35) - self._banner_height // 2
+        by = 35 + float_y + getattr(self._params, 'banner_attach_y', 35) - self._banner_height // 2
         return QRect(bx, by, self._banner_width + 20, self._banner_height + 20)
 
     def set_facing_direction(self, direction: int) -> None:
@@ -184,7 +186,7 @@ class PlaneBanner(QWidget):
         if self._facing_direction == 1:
             # 左→右：飞船在右，横幅在左
             plane_x = extra_left + self._banner_width + 10
-            plane_y = 15 + float_y
+            plane_y = 35 + float_y
 
             mount_x = plane_x + attach_x
             mount_y = plane_y + attach_y
@@ -197,11 +199,11 @@ class PlaneBanner(QWidget):
         else:
             # 右→左：飞船在左，横幅在右
             plane_x = extra_left
-            plane_y = 15 + float_y
+            plane_y = 35 + float_y
 
-            # facing=-1 时 _draw_plane 内部进行了 scale(-1,1) + translate(-70,0)
-            # 局部坐标 (x,y) 在世界坐标中 = (plane_x + 70 - x, plane_y + y)
-            mount_x = plane_x + 70 - attach_x
+            # facing=-1 时 _draw_plane 内部进行了 scale(-1,1) + translate(-100,0)
+            # 局部坐标 (x,y) 在世界坐标中 = (plane_x + 100 - x, plane_y + y)
+            mount_x = plane_x + 100 - attach_x
             mount_y = plane_y + attach_y
 
             bx = mount_x + 10
@@ -269,6 +271,6 @@ class PlaneBanner(QWidget):
         painter.translate(px, py)
         if facing == -1:
             painter.scale(-1, 1)
-            painter.translate(-70, 0)
+            painter.translate(-100, 0)
         painter.drawPixmap(0, 0, self._plane_cache)
         painter.restore()

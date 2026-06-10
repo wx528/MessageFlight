@@ -109,6 +109,12 @@ class PlaneBanner(QWidget):
                     setattr(self._params, params_attr, value)
         self.update()
 
+    def apply_preset(self, preset, params) -> None:
+        """Replace the active preset and its params, then request a repaint."""
+        self._preset = preset
+        self._params = params
+        self.update()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

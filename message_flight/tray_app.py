@@ -213,9 +213,7 @@ class TrayApplication:
                 params = preset.get_default_params()
         else:
             params = preset.get_default_params()
-        self.widget.plane._preset = preset
-        self.widget.plane._params = params
-        self.widget.plane.update()
+        self.widget.plane.apply_preset(preset, params)
 
     def _quit(self):
         if self.notifier:

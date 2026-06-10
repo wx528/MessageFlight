@@ -5,7 +5,8 @@ import sys
 import pytest
 from PyQt6.QtWidgets import QApplication
 
-from message_flight.preset_editor import PresetPreviewWidget
+from message_flight.preset_editor import PresetPreviewWidget, PresetEditorWindow
+from message_flight.config import AppConfig
 from message_flight.plane_presets import get_preset
 
 
@@ -21,3 +22,16 @@ def test_preview_widget_init_does_not_crash(qapp):
     w = PresetPreviewWidget(preset, params)
     assert w._preset is preset
     assert w._params is params
+
+
+def test_editor_window_init_does_not_crash(qapp):
+    cfg = AppConfig()
+    dlg = PresetEditorWindow(cfg)
+    assert dlg._preset_combo.count() == 4
+
+
+def test_editor_window_change_preset_updates_key(qapp):
+    cfg = AppConfig()
+    dlg = PresetEditorWindow(cfg)
+    dlg._preset_combo.setCurrentIndex(2)
+    assert dlg._preset_key == "ufo"

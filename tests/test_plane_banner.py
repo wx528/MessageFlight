@@ -129,3 +129,21 @@ def test_plane_banner_update_colors_sets_preset_params():
     assert banner._params.plane_color == "#ABCDEF"
     assert banner._params.wing_color == "#123456"
 
+
+def test_update_colors_does_not_set_text_color_on_preset_params():
+    """text_color is banner-only (not a vehicle color), so it must not
+    leak onto the AirplaneParameters dataclass via phantom attribute.
+    Without the hasattr guard, dataclasses.asdict() in the editor
+    would silently drop the change because text_color is not a declared field.
+    """
+    from dataclasses import asdict
+    with patch("PyQt6.QtWidgets.QWidget.__init__"), \
+         patch.object(PlaneBanner, "setFixedSize"):
+        banner = PlaneBanner()
+    banner.update = MagicMock()
+    banner.update_colors(text_color="#AABBCC")
+    assert banner._text_color.name().lower() == "#aabbcc"
+    # AirplaneParameters has no text_color field; update_colors must not
+    # create a phantom attribute that would not survive asdict().
+    assert "text_color" not in asdict(banner._params)
+

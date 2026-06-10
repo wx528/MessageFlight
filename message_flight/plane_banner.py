@@ -106,7 +106,8 @@ class PlaneBanner(QWidget):
                 setattr(self, attr, QColor(value))
                 if hasattr(self, "_params"):
                     params_attr = attr.lstrip("_")
-                    setattr(self._params, params_attr, value)
+                    if hasattr(self._params, params_attr):
+                        setattr(self._params, params_attr, value)
         self.update()
 
     def apply_preset(self, preset, params) -> None:

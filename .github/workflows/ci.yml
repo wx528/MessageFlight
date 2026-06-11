@@ -27,8 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --pre .
-          pip install pytest
+          pip install --pre .[dev]
 
       - name: Compile-check all Python files
         run: |

@@ -304,3 +304,22 @@ def test_is_dnd_active_default_uses_current_time():
     assert is_dnd_active(cfg) is True
     cfg2 = AppConfig(dnd_enabled=False, dnd_schedule_enabled=False)
     assert is_dnd_active(cfg2) is False
+
+
+def test_load_config_default_persona_enabled(isolated_settings):
+    cfg = load_config()
+    assert cfg.persona_enabled is True
+
+
+def test_save_load_persona_enabled_round_trip(isolated_settings):
+    cfg = load_config()
+    cfg.persona_enabled = False
+    save_config(cfg)
+    assert load_config().persona_enabled is False
+
+
+def test_save_load_persona_prompts_round_trip(isolated_settings):
+    cfg = load_config()
+    cfg.persona_prompts_json = '{"airplane":"hello"}'
+    save_config(cfg)
+    assert load_config().persona_prompts_json == '{"airplane":"hello"}'

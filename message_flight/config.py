@@ -41,6 +41,10 @@ TTS_PROVIDER_KEY = "tts_provider"
 DEFAULT_TTS_PROVIDER = "sapi"
 VALID_TTS_PROVIDERS = ("sapi", "minimax")
 
+# AI persona feature
+PERSONA_ENABLED_KEY = "persona_enabled"
+PERSONA_PROMPTS_JSON_KEY = "persona_prompts_json"
+
 # User-facing flight paths.  ``horizontal`` is the classic left-to-right
 # sweep; ``vertical_pong`` enters from the top and bounces off the top
 # and bottom edges while drifting right.
@@ -202,6 +206,9 @@ class AppConfig:
     dnd_schedule_enabled: bool = False
     dnd_schedule_start: str = "22:00"
     dnd_schedule_end: str = "08:00"
+    # AI persona
+    persona_enabled: bool = True
+    persona_prompts_json: str = ""
 
 
 def _parse_hhmm(text: str) -> Optional[int]:
@@ -366,6 +373,9 @@ def load_config() -> AppConfig:
         dnd_schedule_enabled = _parse_bool(settings.value(DND_SCHEDULE_ENABLED_KEY, False))
         dnd_schedule_start = str(settings.value(DND_SCHEDULE_START_KEY, "22:00"))
         dnd_schedule_end = str(settings.value(DND_SCHEDULE_END_KEY, "08:00"))
+        # AI persona
+        persona_enabled = _parse_bool(settings.value(PERSONA_ENABLED_KEY, True))
+        persona_prompts_json = str(settings.value(PERSONA_PROMPTS_JSON_KEY, ""))
     except Exception as e:
         print(f"load_config: failed to read keys ({e!r}); using defaults", file=sys.stderr)
         return _default_config()
@@ -384,6 +394,8 @@ def load_config() -> AppConfig:
         dnd_schedule_enabled=dnd_schedule_enabled,
         dnd_schedule_start=dnd_schedule_start,
         dnd_schedule_end=dnd_schedule_end,
+        persona_enabled=persona_enabled,
+        persona_prompts_json=persona_prompts_json,
     )
 
 
@@ -416,6 +428,8 @@ def save_config(cfg: AppConfig) -> None:
         settings.setValue(DND_SCHEDULE_ENABLED_KEY, cfg.dnd_schedule_enabled)
         settings.setValue(DND_SCHEDULE_START_KEY, cfg.dnd_schedule_start)
         settings.setValue(DND_SCHEDULE_END_KEY, cfg.dnd_schedule_end)
+        settings.setValue(PERSONA_ENABLED_KEY, cfg.persona_enabled)
+        settings.setValue(PERSONA_PROMPTS_JSON_KEY, cfg.persona_prompts_json)
         settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)
@@ -454,4 +468,6 @@ def _default_config() -> AppConfig:
         dnd_schedule_enabled=False,
         dnd_schedule_start="22:00",
         dnd_schedule_end="08:00",
+        persona_enabled=True,
+        persona_prompts_json="",
     )

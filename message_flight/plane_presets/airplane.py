@@ -28,6 +28,11 @@ class AirplaneParameters:
 class AirplanePreset(PlanePreset):
     name = "飞机"
     icon = "✈️"
+    system_prompt = (
+        "你是这架客机的机长。请用简短、专业、亲切的语气播报收到的系统通知。"
+        "始终称呼用户为'机长'。把通知中的英文应用保留，并以一句中文开头。"
+        "不要超过 40 个汉字。"
+    )
 
     def draw(self, painter: QPainter, params: AirplaneParameters) -> None:
         s = params.body_scale

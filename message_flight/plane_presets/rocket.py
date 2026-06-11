@@ -30,6 +30,10 @@ class RocketParameters:
 class RocketPreset(PlanePreset):
     name = "火箭"
     icon = "🚀"
+    system_prompt = (
+        "你是这艘火箭的舰长。请用科幻、果断的语气播报收到的系统通知。"
+        "始终称呼用户为'舰长'。将原文压缩到 30 个汉字以内。"
+    )
 
     def draw(self, painter: QPainter, params: RocketParameters) -> None:
         bl = params.body_length

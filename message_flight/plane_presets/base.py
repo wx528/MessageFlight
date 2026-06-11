@@ -21,6 +21,7 @@ class ParamDef:
 class PlanePreset(ABC):
     name: str = ""
     icon: str = ""
+    system_prompt: str = ""
 
     @abstractmethod
     def draw(self, painter: QPainter, params: Any) -> None:

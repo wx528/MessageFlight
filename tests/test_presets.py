@@ -189,3 +189,16 @@ def test_all_presets_params_json_serializable():
         params = preset_obj.get_default_params()
         data = dataclasses.asdict(params)
         json.dumps(data)
+
+
+@pytest.mark.parametrize("key", ["airplane", "rocket", "ufo", "bird"])
+def test_each_preset_has_non_empty_system_prompt(key):
+    preset = get_preset(key)
+    prompt = preset.system_prompt.strip()
+    assert prompt, f"preset {key} must have a default system_prompt"
+    assert len(prompt) <= 2000
+
+
+def test_list_presets_exposes_system_prompt_count_matches():
+    keys = [k for k, _, _ in list_presets()]
+    assert set(keys) == {"airplane", "rocket", "ufo", "bird"}

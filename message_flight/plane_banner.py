@@ -222,7 +222,7 @@ class PlaneBanner(QWidget):
             self._text_color = QColor(text_color)
             if hasattr(self._params, "text_color"):
                 self._params.text_color = text_color
-        self._generate_plane_cache()
+        self.__dict__.pop("_plane_cache", None)
         self.update()
 
     def apply_preset(self, preset, params) -> None:
@@ -233,7 +233,7 @@ class PlaneBanner(QWidget):
         if hasattr(params, "text_color"):
             self._text_color = QColor(params.text_color)
         self._recalculate_size()
-        self._generate_plane_cache()
+        self.__dict__.pop("_plane_cache", None)
         self.update()
 
     def paintEvent(self, event):

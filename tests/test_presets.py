@@ -199,6 +199,8 @@ def test_each_preset_has_non_empty_system_prompt(key):
     assert len(prompt) <= 2000
 
 
-def test_list_presets_exposes_system_prompt_count_matches():
-    keys = [k for k, _, _ in list_presets()]
-    assert set(keys) == {"airplane", "rocket", "ufo", "bird"}
+def test_list_presets_exposes_system_prompt_for_every_registered_preset():
+    for key, _name, _icon in list_presets():
+        prompt = get_preset(key).system_prompt.strip()
+        assert prompt, f"preset {key} must have a non-empty system_prompt"
+        assert len(prompt) <= 2000

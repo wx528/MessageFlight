@@ -118,6 +118,26 @@ def test_flight_mode_does_not_change_colors(qapp):
     assert dlg._line_edits["plane_color"].text() == initial_plane_color
 
 
+def test_settings_dialog_exposes_language_combo(qapp):
+    cfg = AppConfig(language="en")
+    dlg = SettingsDialog(cfg)
+
+    assert dlg._language_combo.currentData() == "en"
+    labels = [dlg._language_combo.itemText(i) for i in range(dlg._language_combo.count())]
+    assert "日本語" in labels
+    assert "한국어" in labels
+
+    dlg._language_combo.setCurrentIndex(dlg._language_combo.findData("ko"))
+    result = dlg.get_result()
+    assert result.language == "ko"
+
+
+def test_settings_dialog_uses_selected_language_labels(qapp):
+    cfg = AppConfig(language="ja")
+    dlg = SettingsDialog(cfg)
+    assert dlg.windowTitle() == "MessageFlight 設定"
+
+
 def test_settings_dialog_returns_minimax_config(qapp):
     """SettingsDialog with minimax provider must return correct config."""
     cfg = AppConfig(tts_provider="sapi")

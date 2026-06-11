@@ -6,8 +6,26 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from unittest.mock import MagicMock, patch
 
 
+def test_tray_app_starts_hidden_in_tray():
+    """Starting the tray app must not show the flight widget until a notification or user action."""
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget") as mock_widget_cls, \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        _ = TrayApplication()
+
+    mock_widget_cls.return_value.show.assert_not_called()
+
+
 def test_on_real_notification_calls_tts_speak():
     """When a real notification arrives, tray_app must call tts.speak() with the display text."""
+    from message_flight.config import AppConfig
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -21,6 +39,7 @@ def test_on_real_notification_calls_tts_speak():
         mock_tts = MagicMock()
         mock_tts_cls.return_value = mock_tts
         app = TrayApplication()
+        app.cfg = AppConfig(dnd_enabled=False)
         app._on_real_notification("WeChat", "hello")
         mock_tts.speak.assert_called_once_with("[WeChat] hello")
 
@@ -32,7 +51,7 @@ def test_on_real_notification_drops_when_dnd_enabled():
 
     with patch("message_flight.tray_app.QApplication"), \
          patch("message_flight.tray_app.QSystemTrayIcon"), \
-         patch("message_flight.tray_app.FlightWidget") as mock_widget_cls, \
+         patch("message_flight.tray_app.FlightWidget"), \
          patch("message_flight.tray_app.QMenu"), \
          patch("message_flight.tray_app.QAction"), \
          patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
@@ -69,6 +88,27 @@ def test_send_demo_notification_bypasses_dnd():
         app.widget.enqueue_notification.assert_called_once()
 
 
+def test_tray_app_uses_configured_language_for_menu_labels():
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction") as mock_action, \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.load_config", return_value=AppConfig(language="en")), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        _ = TrayApplication()
+
+    action_texts = [call.args[0] for call in mock_action.call_args_list if call.args]
+    assert "Show plane" in action_texts
+    assert "Do Not Disturb" in action_texts
+    assert "Quit" in action_texts
+
+
 def test_tray_app_has_dnd_menu_item():
     """免打扰 menu item must be present and checkable."""
     from message_flight.tray_app import TrayApplication
@@ -81,9 +121,6 @@ def test_tray_app_has_dnd_menu_item():
          patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
          patch("message_flight.tray_app.TTSManager"):
         _ = TrayApplication()
-    dnd_action_instances = [
-        inst for inst in mock_action.return_value.get_calls()
-    ]
     # Find the QAction("免打扰", ...) instance by checking the construction call
     dnd_constructed = any(
         call.args and call.args[0] == "免打扰"

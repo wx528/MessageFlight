@@ -139,7 +139,6 @@ def test_update_colors_does_not_set_text_color_on_preset_params():
     Without the hasattr guard, dataclasses.asdict() in the editor
     would silently drop the change because text_color is not a declared field.
     """
-    from dataclasses import asdict
     with patch("PyQt6.QtWidgets.QWidget.__init__"), \
          patch.object(PlaneBanner, "setFixedSize"):
         banner = PlaneBanner()

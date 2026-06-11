@@ -1,6 +1,6 @@
 # MessageFlight
 
-[中文](README.zh.md) | English | [日本語](README.ja.md) | [한국어](README.ko.md) | [Bahasa Indonesia](README.id.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Bahasa Melayu](README.ms.md)
+[中文](README.zh.md) | [English](README.md) | 日本語 | [한국어](README.ko.md) | [Bahasa Indonesia](README.id.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Bahasa Melayu](README.ms.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python">
@@ -13,26 +13,26 @@
   <img src="https://img.shields.io/badge/Languages-zh%20%7C%20en%20%7C%20ja%20%7C%20ko%20%7C%20id%20%7C%20th%20%7C%20vi%20%7C%20ms-8A2BE2?style=flat" alt="Languages">
 </p>
 
-Let Windows notifications fly across your screen like a little plane.
+Windows の通知を小さな飛行機のように画面上へ飛ばします。
 
-## Screenshots
+## スクリーンショット
 
 | | | |
 |:---:|:---:|:---:|
-| ![Plane flying above a game window](screenshots/screen_top_on_game01.png) | ![Plane flying above a game window](screenshots/screen_top_on_game02.png) | ![Plane flying across the desktop](screenshots/screen_top_on_screen.png) |
-| ![Plane in cyber preset](screenshots/screen_other_color.png) | | |
+| ![ゲーム画面の上を飛ぶ飛行機](screenshots/screen_top_on_game01.png) | ![ゲーム画面の上を飛ぶ飛行機](screenshots/screen_top_on_game02.png) | ![デスクトップ上を飛ぶ飛行機](screenshots/screen_top_on_screen.png) |
+| ![サイバー配色の飛行機](screenshots/screen_other_color.png) | | |
 
-## Features
+## 機能
 
-- Animated plane overlay for real Windows notifications
-- System tray controls for pause, demo notification, do-not-disturb, settings, autostart, and quit
-- Lightweight UI languages: Chinese, English, Japanese, Korean, Indonesian, Thai, Vietnamese, and Malay
-- Custom colors, flight paths, and vehicle presets
-- Optional TTS support through SAPI or MiniMax
+- 実際の Windows 通知を飛行機アニメーションで表示
+- トレイメニューで一時停止、デモ通知、通知オフ、設定、自動起動、終了を操作
+- 軽量 UI 言語: 中国語、英語、日本語、韓国語、インドネシア語、タイ語、ベトナム語、マレー語
+- 配色、飛行ルート、機体プリセットをカスタマイズ可能
+- SAPI または MiniMax による任意の TTS 対応
 
-## Quick Start
+## クイックスタート
 
-Requires Windows 10/11 and Python 3.8+.
+Windows 10/11 と Python 3.8+ が必要です。
 
 ```bash
 git clone https://github.com/wx528/MessageFlight.git
@@ -43,7 +43,7 @@ pip install .
 python message_flight.py
 ```
 
-Using `uv`:
+`uv` を使う場合:
 
 ```bash
 uv sync

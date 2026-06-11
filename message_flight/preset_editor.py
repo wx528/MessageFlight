@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from typing import Optional
+from typing import Optional, cast
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from message_flight.config import AppConfig
+from message_flight.i18n import tr
 from message_flight.plane_presets import get_preset, list_presets
 from message_flight.plane_presets.base import PlanePreset
 
@@ -147,7 +148,8 @@ class PresetPreviewWidget(QWidget):
 class PresetEditorWindow(QDialog):
     def __init__(self, cfg: AppConfig, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("飞船编辑器")
+        self._language = cfg.language
+        self.setWindowTitle(tr("preset_editor.title", self._language))
         self.setModal(True)
         self._cfg = cfg
         self._preset_key = cfg.plane_preset_key or "airplane"
@@ -168,7 +170,7 @@ class PresetEditorWindow(QDialog):
 
         root = QVBoxLayout(self)
         top_row = QHBoxLayout()
-        top_row.addWidget(QLabel("预设:"))
+        top_row.addWidget(QLabel(tr("preset_editor.preset", self._language)))
         self._preset_combo = QComboBox()
         for key, name, icon in list_presets():
             self._preset_combo.addItem(f"{icon} {name}", key)
@@ -215,9 +217,10 @@ class PresetEditorWindow(QDialog):
             spin = self._param_widgets.get(name)
             if spin is not None:
                 value = mx if name == "banner_attach_x" else my
-                spin.blockSignals(True)
-                spin.setValue(value)
-                spin.blockSignals(False)
+                spin_box = cast(QSpinBox, spin)
+                spin_box.blockSignals(True)
+                spin_box.setValue(value)
+                spin_box.blockSignals(False)
 
     def _refresh_preview(self) -> None:
         self._preview.update_params(self._params)
@@ -234,6 +237,8 @@ class PresetEditorWindow(QDialog):
     def _build_param_panel(self) -> None:
         while self._param_layout.count():
             item = self._param_layout.takeAt(0)
+            if item is None:
+                continue
             w = item.widget()
             if w is not None:
                 w.deleteLater()
@@ -256,7 +261,11 @@ class PresetEditorWindow(QDialog):
                 def make_picker(_edit=edit, _swatch=swatch, _n=param_def.name, _label=param_def.label):
                     def open_picker():
                         current = QColor(_edit.text())
-                        chosen = QColorDialog.getColor(current, self, f"选择 {_label}")
+                        chosen = QColorDialog.getColor(
+                            current,
+                            self,
+                            tr("preset_editor.choose_color", self._language, label=_label),
+                        )
                         if chosen.isValid():
                             _edit.setText(chosen.name())
                             _swatch.setStyleSheet(
@@ -290,19 +299,19 @@ class PresetEditorWindow(QDialog):
                 self._param_layout.addRow(param_def.label, spin)
                 self._param_widgets[param_def.name] = spin
             elif param_def.type == "float":
-                spin = QDoubleSpinBox()
-                spin.setRange(
+                double_spin = QDoubleSpinBox()
+                double_spin.setRange(
                     float(param_def.min) if param_def.min is not None else 0.0,
                     float(param_def.max) if param_def.max is not None else 999.0,
                 )
                 if param_def.step is not None:
-                    spin.setSingleStep(float(param_def.step))
-                spin.setValue(float(value))
-                spin.valueChanged.connect(
+                    double_spin.setSingleStep(float(param_def.step))
+                double_spin.setValue(float(value))
+                double_spin.valueChanged.connect(
                     lambda v, _n=param_def.name: self._on_float_changed(_n, v)
                 )
-                self._param_layout.addRow(param_def.label, spin)
-                self._param_widgets[param_def.name] = spin
+                self._param_layout.addRow(param_def.label, double_spin)
+                self._param_widgets[param_def.name] = double_spin
             elif param_def.type == "bool":
                 cb = QCheckBox()
                 cb.setChecked(bool(value))

@@ -19,12 +19,15 @@ from typing import Any, Optional
 
 from PyQt6.QtCore import QSettings
 
+from message_flight.i18n import detect_system_language, normalize_language
+
 ORG = "MessageFlight"
 APP = "MessageFlight"
 SETTINGS_KEY = "color_scheme"
 FLIGHT_KWARG_KEY = "flight_kwargs_json"
 FLIGHT_MODE_KEY = "flight_mode"
 MINIMAX_SUBSCRIPTION_KEY = "minimax_subscription_key"
+LANGUAGE_KEY = "language"
 PLANE_PRESET_KEY = "plane_preset_key"
 PLANE_PRESET_PARAMS_JSON_KEY = "plane_preset_params_json"
 
@@ -191,6 +194,7 @@ class AppConfig:
     )
     tts_provider: str = DEFAULT_TTS_PROVIDER
     minimax_subscription_key: str = ""
+    language: str = field(default_factory=detect_system_language)
     plane_preset_key: str = "airplane"
     plane_preset_params_json: str = ""
     # Do-Not-Disturb
@@ -354,6 +358,7 @@ def load_config() -> AppConfig:
         if tts_provider not in VALID_TTS_PROVIDERS:
             tts_provider = DEFAULT_TTS_PROVIDER
         minimax_subscription_key = str(settings.value(MINIMAX_SUBSCRIPTION_KEY, ""))
+        language = normalize_language(str(settings.value(LANGUAGE_KEY, detect_system_language())))
         plane_preset_key = str(settings.value(PLANE_PRESET_KEY, "airplane"))
         plane_preset_params_json = str(settings.value(PLANE_PRESET_PARAMS_JSON_KEY, ""))
         # DND fields
@@ -372,6 +377,7 @@ def load_config() -> AppConfig:
         flight_kwargs=flight_kwargs,
         tts_provider=tts_provider,
         minimax_subscription_key=minimax_subscription_key,
+        language=language,
         plane_preset_key=plane_preset_key,
         plane_preset_params_json=plane_preset_params_json,
         dnd_enabled=dnd_enabled,
@@ -403,6 +409,7 @@ def save_config(cfg: AppConfig) -> None:
         settings.setValue(FLIGHT_KWARG_KEY, json.dumps(flight_kwargs_to_save))
         settings.setValue(TTS_PROVIDER_KEY, cfg.tts_provider)
         settings.setValue(MINIMAX_SUBSCRIPTION_KEY, cfg.minimax_subscription_key)
+        settings.setValue(LANGUAGE_KEY, normalize_language(cfg.language))
         settings.setValue(PLANE_PRESET_KEY, cfg.plane_preset_key)
         settings.setValue(PLANE_PRESET_PARAMS_JSON_KEY, cfg.plane_preset_params_json)
         settings.setValue(DND_ENABLED_KEY, cfg.dnd_enabled)
@@ -440,6 +447,7 @@ def _default_config() -> AppConfig:
         flight_kwargs=dict(mode),
         tts_provider=DEFAULT_TTS_PROVIDER,
         minimax_subscription_key="",
+        language=detect_system_language(),
         plane_preset_key="airplane",
         plane_preset_params_json="",
         dnd_enabled=False,

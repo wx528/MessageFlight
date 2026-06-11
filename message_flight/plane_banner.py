@@ -1,7 +1,7 @@
 """Custom QWidget that draws a plane with a notification banner."""
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QRect, QTimer, pyqtProperty
+from PyQt6.QtCore import QRect, Qt, QTimer, pyqtProperty  # type: ignore[attr-defined]
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import QWidget
 
@@ -295,7 +295,6 @@ class PlaneBanner(QWidget):
         painter.setPen(Qt.GlobalColor.white)
         font = QFont("Microsoft YaHei", 10, QFont.Weight.Bold)
         painter.setFont(font)
-        text_y = bubble_y + (text_h + fm.ascent() - fm.descent()) // 2
         painter.drawText(bubble_x, bubble_y, text_w, text_h, Qt.AlignmentFlag.AlignCenter, self._click_feedback_text)
 
     def _draw_banner(self, painter: QPainter, bx: int, by: int, tail_on_right: bool):

@@ -1,5 +1,6 @@
 """Main flight widget that animates the plane across the screen."""
 import random
+from typing import Any, Dict, Optional
 
 from PyQt6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QWidget
@@ -34,7 +35,7 @@ class FlightWidget(QWidget):
         re_flight_jitter_min_ratio: float = -1.0,
         notification_interval_ms: int = 5000,
         notification_queue_max_size: int = 20,
-        plane_colors: dict = None,
+        plane_colors: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.setWindowFlags(
@@ -45,11 +46,15 @@ class FlightWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         # Note: WA_TransparentForMouseEvents removed to allow plane interaction
 
-        screen = QApplication.primaryScreen().geometry()
+        primary_screen = QApplication.primaryScreen()
+        if primary_screen is None:
+            raise RuntimeError("No primary screen available")
+        screen = primary_screen.geometry()
         self.screen_w = screen.width()
         self.screen_h = screen.height()
         self.setGeometry(0, 0, self.screen_w, self.screen_h)
 
+        self.plane: PlaneBanner
         if plane_colors is None:
             self.plane = PlaneBanner(self)
         else:
@@ -158,7 +163,6 @@ class FlightWidget(QWidget):
     def _setup_zigzag_top_down(self):
         self._zigzag_row = 0
         self._zigzag_direction = 1
-        row_height = max(80, self.screen_h // 4)
         start_y = 0
         end_y = start_y
         duration = int(self._fly_duration_ms * 0.6)
@@ -173,7 +177,6 @@ class FlightWidget(QWidget):
     def _setup_zigzag_bottom_up(self):
         self._zigzag_row = 0
         self._zigzag_direction = 1
-        row_height = max(80, self.screen_h // 4)
         start_y = self.screen_h - self.plane.height()
         end_y = start_y
         duration = int(self._fly_duration_ms * 0.6)

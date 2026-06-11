@@ -25,26 +25,21 @@ from message_flight.config import (
     VALID_FLY_PATHS,
     AppConfig,
 )
+from message_flight.i18n import LANGUAGES, language_name, tr
 
-# Human-readable label + the matching key in THEMES / AppConfig.colors
-_COLOR_ROWS: tuple[tuple[str, str], ...] = (
-    ("飞机主体", "plane_color"),
-    ("机翼", "wing_color"),
-    ("眼睛/高光", "accent_color"),
-    ("小圆装饰", "decor_color"),
-    ("横幅背景", "banner_color"),
-    ("横幅文字", "text_color"),
-    ("推进器外焰", "thruster_outer_color"),
-    ("推进器中焰", "thruster_middle_color"),
-    ("推进器内焰", "thruster_inner_color"),
+_COLOR_KEYS: tuple[str, ...] = (
+    "plane_color",
+    "wing_color",
+    "accent_color",
+    "decor_color",
+    "banner_color",
+    "text_color",
+    "thruster_outer_color",
+    "thruster_middle_color",
+    "thruster_inner_color",
 )
 
-# (button text, theme key) — must match ``THEMES`` keys in ``config.py``.
-_PRESETS: tuple[tuple[str, str], ...] = (
-    ("默认粉", "default"),
-    ("复古绿", "retro"),
-    ("未来赛博", "cyber"),
-)
+_PRESET_KEYS: tuple[str, ...] = ("default", "retro", "cyber")
 
 
 class SettingsDialog(QDialog):
@@ -57,7 +52,8 @@ class SettingsDialog(QDialog):
 
     def __init__(self, initial: AppConfig, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        self.setWindowTitle("MessageFlight 设置")
+        self._language = initial.language
+        self.setWindowTitle(tr("settings.title", self._language))
         self.setModal(True)
 
         self._current_theme_name = initial.theme_name or DEFAULT_THEME
@@ -70,9 +66,20 @@ class SettingsDialog(QDialog):
 
         root = QVBoxLayout(self)
 
+        language_row = QHBoxLayout()
+        language_row.addWidget(QLabel(tr("settings.language", self._language)))
+        self._language_combo = QComboBox()
+        for language in LANGUAGES:
+            self._language_combo.addItem(language_name(language), language)
+        current_language_index = self._language_combo.findData(self._language)
+        self._language_combo.setCurrentIndex(max(0, current_language_index))
+        language_row.addWidget(self._language_combo)
+        language_row.addStretch(1)
+        root.addLayout(language_row)
+
         # Flight-mode row (Task 06) — sits at the TOP, above the color preset row
         flight_mode_row = QHBoxLayout()
-        flight_mode_row.addWidget(QLabel("飞行模式:"))
+        flight_mode_row.addWidget(QLabel(tr("settings.flight_mode", self._language)))
         for mode_name in FLIGHT_MODE_NAMES:
             btn = QPushButton(mode_name)
             btn.clicked.connect(
@@ -85,7 +92,7 @@ class SettingsDialog(QDialog):
 
         # Fly-path row
         path_row = QHBoxLayout()
-        path_row.addWidget(QLabel("飞行路径:"))
+        path_row.addWidget(QLabel(tr("settings.fly_path", self._language)))
         self._path_combo = QComboBox()
         for p in VALID_FLY_PATHS:
             self._path_combo.addItem(p)
@@ -98,9 +105,9 @@ class SettingsDialog(QDialog):
 
         # Preset row
         preset_row = QHBoxLayout()
-        preset_row.addWidget(QLabel("配色:"))
-        for label, theme_key in _PRESETS:
-            btn = QPushButton(label)
+        preset_row.addWidget(QLabel(tr("settings.color_scheme", self._language)))
+        for theme_key in _PRESET_KEYS:
+            btn = QPushButton(tr(f"settings.preset.{theme_key}", self._language))
             btn.clicked.connect(lambda _checked=False, key=theme_key: self._apply_preset(key))
             preset_row.addWidget(btn)
         preset_row.addStretch(1)
@@ -108,7 +115,7 @@ class SettingsDialog(QDialog):
 
         # 9 color rows
         form = QFormLayout()
-        for label_text, key in _COLOR_ROWS:
+        for key in _COLOR_KEYS:
             edit = QLineEdit(self)
             swatch = QLabel(self)
             swatch.setFixedSize(28, 18)
@@ -125,13 +132,13 @@ class SettingsDialog(QDialog):
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.addWidget(edit)
             row_layout.addWidget(swatch)
-            form.addRow(label_text, row_widget)
+            form.addRow(tr(f"settings.color.{key}", self._language), row_widget)
 
         root.addLayout(form)
 
         # TTS Provider row
         provider_row = QHBoxLayout()
-        provider_row.addWidget(QLabel("TTS 引擎:"))
+        provider_row.addWidget(QLabel(tr("settings.tts_engine", self._language)))
         self._provider_combo = QComboBox()
         for p in ("sapi", "minimax"):
             self._provider_combo.addItem(p)
@@ -142,9 +149,9 @@ class SettingsDialog(QDialog):
         root.addLayout(provider_row)
 
         # API Key (enabled only for minimax)
-        self._api_key_label = QLabel("MiniMax 订阅 Key:")
+        self._api_key_label = QLabel(tr("settings.minimax_key", self._language))
         self._api_key_edit = QLineEdit(initial.minimax_subscription_key)
-        self._api_key_edit.setPlaceholderText("Token Plan 订阅 Key")
+        self._api_key_edit.setPlaceholderText(tr("settings.minimax_key_placeholder", self._language))
         form.addRow(self._api_key_label, self._api_key_edit)
         self._update_api_key_enabled(initial.tts_provider)
 
@@ -185,6 +192,7 @@ class SettingsDialog(QDialog):
             flight_kwargs=dict(self._current_flight_kwargs),
             tts_provider=self._provider_combo.currentText(),
             minimax_subscription_key=self._api_key_edit.text(),
+            language=self._language_combo.currentData(),
         )
 
     # ------------------------------------------------------------------

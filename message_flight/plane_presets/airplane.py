@@ -19,7 +19,6 @@ class AirplaneParameters:
     thruster_middle_color: str = "#FF4500"
     thruster_inner_color: str = "#FFFF00"
     body_scale: float = 1.0
-    banner_color: str = "#FFB6C1"
     text_color: str = "#FFFFFF"
     rotation: float = 0.0
     banner_attach_x: int = 0

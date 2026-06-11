@@ -185,7 +185,7 @@ class MiniMaxReader(TTSReader, QObject):
             return
 
         try:
-            response_text = bytes(data).decode("utf-8")
+            response_text = data.data().decode("utf-8")
             logger.debug("MiniMaxReader._on_reply_finished: response=%s", response_text[:500])
             response_json = json.loads(response_text)
         except (UnicodeDecodeError, json.JSONDecodeError) as e:

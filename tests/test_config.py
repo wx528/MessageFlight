@@ -40,6 +40,28 @@ def isolated_settings(monkeypatch, tmp_path):
     del settings
 
 
+def test_load_config_default_language_follows_system(isolated_settings, monkeypatch):
+    monkeypatch.setattr("message_flight.config.detect_system_language", lambda: "ja")
+    cfg = load_config()
+    assert cfg.language == "ja"
+
+
+def test_save_load_language_round_trip(isolated_settings):
+    cfg = load_config()
+    cfg.language = "ko"
+    save_config(cfg)
+    loaded = load_config()
+    assert loaded.language == "ko"
+
+
+def test_load_config_rejects_unknown_language(isolated_settings):
+    cfg = load_config()
+    cfg.language = "xx"
+    save_config(cfg)
+    loaded = load_config()
+    assert loaded.language == "zh"
+
+
 def test_load_config_default_tts_provider(isolated_settings):
     """Default tts_provider must be 'sapi'."""
     cfg = load_config()

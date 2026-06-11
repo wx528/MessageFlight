@@ -11,6 +11,7 @@ from message_flight.autostart import is_auto_start_enabled, set_auto_start
 from message_flight.config import is_dnd_active, load_config, save_config
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
+from message_flight.i18n import tr
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
@@ -31,8 +32,8 @@ class TrayApplication:
 
         # Load persisted color scheme and hand it to the widget
         self.cfg = load_config()
-        self.widget = FlightWidget(plane_colors=self.cfg.colors, **self.cfg.flight_kwargs)
-        self.widget.show()
+        self.language = self.cfg.language
+        self.widget: FlightWidget = FlightWidget(plane_colors=self.cfg.colors, **self.cfg.flight_kwargs)
 
         self.tts = TTSManager(self.cfg)
 
@@ -42,44 +43,44 @@ class TrayApplication:
 
         self.menu = QMenu()
 
-        self.action_show = QAction("显示飞机", self.menu)
+        self.action_show = QAction(tr("tray.show", self.language), self.menu)
         self.action_show.triggered.connect(self._show_widget)
         self.menu.addAction(self.action_show)
 
-        self.action_pause = QAction("暂停飞行", self.menu)
+        self.action_pause = QAction(tr("tray.pause", self.language), self.menu)
         self.action_pause.setCheckable(True)
         self.action_pause.triggered.connect(self._toggle_pause)
         self.menu.addAction(self.action_pause)
 
-        self.action_demo = QAction("发送演示通知", self.menu)
+        self.action_demo = QAction(tr("tray.demo", self.language), self.menu)
         self.action_demo.triggered.connect(self._send_demo_notification)
         self.menu.addAction(self.action_demo)
 
         # 免打扰模式（manual toggle only; scheduled window is read-only here）
-        self.action_dnd = QAction("免打扰", self.menu)
+        self.action_dnd = QAction(tr("tray.dnd", self.language), self.menu)
         self.action_dnd.setCheckable(True)
         self.action_dnd.setChecked(self.cfg.dnd_enabled)
         self.action_dnd.triggered.connect(self._toggle_dnd)
         self.menu.addAction(self.action_dnd)
 
-        self.action_settings = QAction("设置...", self.menu)
+        self.action_settings = QAction(tr("tray.settings", self.language), self.menu)
         self.action_settings.triggered.connect(self._open_settings)
         self.menu.addAction(self.action_settings)
 
-        self.action_preset_editor = QAction("飞船编辑器", self.menu)
+        self.action_preset_editor = QAction(tr("tray.preset_editor", self.language), self.menu)
         self.action_preset_editor.triggered.connect(self._open_preset_editor)
         self.menu.addAction(self.action_preset_editor)
 
         self.menu.addSeparator()
 
         # 通知权限状态
-        self.action_notif_status = QAction("通知权限: 检查中...", self.menu)
+        self.action_notif_status = QAction(tr("tray.notification_status.checking", self.language), self.menu)
         self.action_notif_status.setEnabled(False)
         self.menu.addAction(self.action_notif_status)
 
         self.menu.addSeparator()
 
-        self.action_autostart = QAction("开机自启", self.menu)
+        self.action_autostart = QAction(tr("tray.autostart", self.language), self.menu)
         self.action_autostart.setCheckable(True)
         self.action_autostart.setChecked(is_auto_start_enabled())
         self.action_autostart.triggered.connect(self._toggle_autostart)
@@ -87,7 +88,7 @@ class TrayApplication:
 
         self.menu.addSeparator()
 
-        self.action_quit = QAction("退出", self.menu)
+        self.action_quit = QAction(tr("tray.quit", self.language), self.menu)
         self.action_quit.triggered.connect(self._quit)
         self.menu.addAction(self.action_quit)
 
@@ -103,7 +104,7 @@ class TrayApplication:
             self.notifier.access_status_changed.connect(self._on_access_status)
             self.notifier.start()
         else:
-            self.action_notif_status.setText("通知权限: winsdk 未安装")
+            self.action_notif_status.setText(tr("tray.notification_status.unavailable", self.language))
 
     def _create_tray_icon(self) -> QIcon:
         size = 64
@@ -147,9 +148,23 @@ class TrayApplication:
         self.widget.raise_()
         self.widget.activateWindow()
 
+    def _refresh_translated_labels(self) -> None:
+        self.action_show.setText(tr("tray.show", self.language))
+        self.action_pause.setText(
+            tr("tray.resume", self.language) if self.action_pause.isChecked() else tr("tray.pause", self.language)
+        )
+        self.action_demo.setText(tr("tray.demo", self.language))
+        self.action_dnd.setText(tr("tray.dnd", self.language))
+        self.action_settings.setText(tr("tray.settings", self.language))
+        self.action_preset_editor.setText(tr("tray.preset_editor", self.language))
+        self.action_autostart.setText(tr("tray.autostart", self.language))
+        self.action_quit.setText(tr("tray.quit", self.language))
+
     def _toggle_pause(self, checked: bool):
         self.widget.set_paused(checked)
-        self.action_pause.setText("继续飞行" if checked else "暂停飞行")
+        self.action_pause.setText(
+            tr("tray.resume", self.language) if checked else tr("tray.pause", self.language)
+        )
 
     def _toggle_dnd(self, checked: bool):
         """Toggle manual Do-Not-Disturb and persist the choice."""
@@ -186,8 +201,19 @@ class TrayApplication:
 
     def _on_access_status(self, status: int):
         """通知权限状态更新"""
-        labels = {0: "未指定", 1: "已允许", 2: "已拒绝"}
-        self.action_notif_status.setText(f"通知权限: {labels.get(status, '未知')} ({status})")
+        labels = {
+            0: tr("status.unspecified", self.language),
+            1: tr("status.allowed", self.language),
+            2: tr("status.denied", self.language),
+        }
+        self.action_notif_status.setText(
+            tr(
+                "tray.notification_status",
+                self.language,
+                label=labels.get(status, tr("status.unknown", self.language)),
+                status=status,
+            )
+        )
 
     def _send_demo_notification(self):
         """Pick a random demo notification, speak it, and fire it on the widget.
@@ -206,6 +232,9 @@ class TrayApplication:
         if dlg.exec() == QDialog.DialogCode.Accepted:
             new_cfg = dlg.get_result()
             save_config(new_cfg)
+            self.cfg = new_cfg
+            self.language = new_cfg.language
+            self._refresh_translated_labels()
             self.widget.plane.update_colors(**new_cfg.colors)
             self.widget.set_flight_kwargs(**new_cfg.flight_kwargs)
             self.tts.update_config(new_cfg)

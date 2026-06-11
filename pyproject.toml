@@ -20,7 +20,7 @@ Homepage = "https://github.com/wx528/MessageFlight"
 Issues = "https://github.com/wx528/MessageFlight/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-qt>=4.0"]
+dev = ["pytest>=7.0,<9", "pytest-qt>=4.0", "mypy>=1.8,<1.15", "types-pywin32>=311; python_version >= '3.9'"]
 
 [build-system]
 requires = ["hatchling"]
@@ -32,10 +32,12 @@ packages = ["message_flight"]
 [tool.ruff]
 target-version = "py38"
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
 ignore = ["E501", "UP006", "UP045", "N802", "SIM117"]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.mypy]

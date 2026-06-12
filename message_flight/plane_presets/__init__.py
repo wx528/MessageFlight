@@ -6,6 +6,7 @@ from .airplane import AirplanePreset
 from .base import PlanePreset
 from .bird import BirdPreset
 from .duck import DuckPreset
+from .gold_ufo import GoldUFOPreset
 from .rainbow_rocket import RainbowRocketPreset
 from .rocket import RocketPreset
 from .sleigh import SleighPreset
@@ -33,6 +34,7 @@ def list_presets() -> list[tuple[str, str, str]]:
 
 UNLOCKABLE_PRESETS: dict[str, type[PlanePreset]] = {
     "duck": DuckPreset,
+    "gold_ufo": GoldUFOPreset,
     "rainbow_rocket": RainbowRocketPreset,
     "sleigh": SleighPreset,
 }

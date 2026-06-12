@@ -14,7 +14,6 @@ State machine:
 """
 from __future__ import annotations
 
-import contextlib
 import logging
 import math
 import struct
@@ -136,11 +135,6 @@ class STTManager(QObject):
         self._set_state(STTManagerState.LISTENING_FOR_COMMAND)
         if self._listener is not None:
             self._listener.pause()
-            # Test mocks expose is_paused as a plain attribute; the real
-            # OpenWakeWordListener exposes it as a read-only property.
-            # Best-effort sync so test assertions can read the state.
-            with contextlib.suppress(AttributeError):
-                self._listener.is_paused = True  # type: ignore[misc]
         self._audio_buffer = bytearray()
         self._silent_frames = 0
         self.listening_started.emit()
@@ -152,7 +146,12 @@ class STTManager(QObject):
         self._silence_timer.start(COMMAND_TIMEOUT_MS)
 
     def _on_audio_chunk(self, audio_chunk: bytes) -> None:
-        """Called by the audio pipeline (or by tests) with each frame."""
+        """Called once per 80ms frame of 16kHz mono int16 PCM (2560 bytes).
+
+        In production this is invoked by a connection from the wake-word
+        listener's frame signal (wiring done in Task 9 / TrayApplication).
+        Tests call it directly to drive the state machine.
+        """
         if self._state != STTManagerState.LISTENING_FOR_COMMAND:
             return
         self._audio_buffer.extend(audio_chunk)
@@ -198,6 +197,8 @@ class STTManager(QObject):
     def _on_listener_error(self, error_msg: str) -> None:
         logger.error("STTManager: listener error: %s", error_msg)
         self.transcript_failed.emit("mic")
+        if self._state != STTManagerState.IDLE:
+            self._schedule_return_to_idle()
 
     def _schedule_return_to_idle(self) -> None:
         if self._idle_timer is not None:

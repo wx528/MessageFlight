@@ -48,7 +48,7 @@ def test_wake_word_transitions_to_listening(qapp) -> None:
     mgr.start()
     mgr._on_wake_word()
     assert mgr.state.value == "listening"
-    assert listener.is_paused is True
+    listener.pause.assert_called_once()
     mgr.stop()
 
 
@@ -180,3 +180,44 @@ def test_listening_emits_listening_started_signal(qapp) -> None:
     mgr._on_wake_word()
     assert captured == [True]
     mgr.stop()
+
+
+def test_silence_timeout_triggers_stt_with_partial_audio(qapp) -> None:
+    """5s hard timeout should still trigger STT with whatever audio was buffered."""
+    from message_flight.stt_manager import COMMAND_TIMEOUT_MS
+    mgr, _listener, stt = _make_manager(qapp)
+    mgr.start()
+    mgr._state = mgr._state.__class__.LISTENING_FOR_COMMAND
+
+    # Feed 2 frames (below silence threshold) — NOT enough to trigger silence detection
+    fake_chunk = b"\x00\x00" * 1280
+    mgr._on_audio_chunk(fake_chunk)
+    mgr._on_audio_chunk(fake_chunk)
+
+    # Manually trigger the timeout handler
+    assert COMMAND_TIMEOUT_MS == 5000  # spec value
+    mgr._on_silence_timeout()
+
+    # STT should be called with whatever was buffered
+    stt.transcribe.assert_called_once()
+    assert len(stt.transcribe.call_args.args[0]) == 2 * 1280 * 2
+    mgr.stop()
+
+
+def test_listener_error_returns_to_idle(qapp) -> None:
+    """Listener error during LISTENING should still return the manager to IDLE."""
+    mgr, _listener, _stt = _make_manager(qapp)
+    captured = []
+    mgr.transcript_failed.connect(lambda r: captured.append(r))
+    mgr.start()
+    mgr._state = mgr._state.__class__.LISTENING_FOR_COMMAND
+
+    mgr._on_listener_error("mic died")
+
+    assert captured == ["mic"]
+    # State stays LISTENING immediately; _schedule_return_to_idle() is async
+    # The 1s timer is started but not fired in this test
+    assert mgr.state.value == "listening"  # not yet returned
+    # Manually fire the return-to-idle timer by calling _return_to_idle directly
+    mgr._return_to_idle()
+    assert mgr.state.value == "idle"

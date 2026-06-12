@@ -165,3 +165,66 @@ def test_engine_early_bird_fires_when_hour_in_window(qapp, monkeypatch):
     ids = [c.args[0] for c in fired.call_args_list]
     assert "early_bird" in ids
     assert "pixel_bird" in cfg.unlocked_presets
+
+
+def test_clicker_fires_after_enough_clicks(qapp, fixed_noon):
+    from message_flight.achievement_engine import AchievementEngine
+    from message_flight.config import AppConfig
+
+    cfg = AppConfig()
+    engine = AchievementEngine(cfg)
+    fired = MagicMock()
+    engine.milestone.connect(fired)
+
+    for _ in range(9):
+        engine.record_plane_click()
+    fired.assert_not_called()
+
+    engine.record_plane_click()
+    fired.assert_called_once_with("clicker")
+
+    for _ in range(5):
+        engine.record_plane_click()
+    assert fired.call_count == 1
+
+
+def test_loud_mouth_fires_after_enough_messages(qapp, fixed_noon):
+    from message_flight.achievement_engine import AchievementEngine
+    from message_flight.config import AppConfig
+
+    cfg = AppConfig()
+    engine = AchievementEngine(cfg)
+    fired = MagicMock()
+    engine.milestone.connect(fired)
+
+    for _ in range(49):
+        engine.record_tts_speak()
+    fired.assert_not_called()
+
+    engine.record_tts_speak()
+    fired.assert_called_once_with("loud_mouth")
+
+    for _ in range(10):
+        engine.record_tts_speak()
+    assert fired.call_count == 1
+
+
+def test_try_them_all_fires_after_all_available_presets(qapp, fixed_noon):
+    from message_flight.achievement_engine import AchievementEngine
+    from message_flight.config import AppConfig
+
+    cfg = AppConfig()
+    engine = AchievementEngine(cfg)
+    fired = MagicMock()
+    engine.milestone.connect(fired)
+
+    for key in ("airplane", "rocket", "ufo"):
+        engine.record_preset_used(key)
+    fired.assert_not_called()
+
+    engine.record_preset_used("bird")
+    fired.assert_called_once_with("try_them_all")
+
+    engine.record_preset_used("airplane")
+    engine.record_preset_used("sleigh")
+    assert fired.call_count == 1

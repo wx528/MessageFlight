@@ -93,7 +93,7 @@ class TTSManager(QObject):
         if isinstance(provider, MiniMaxReader):
             provider._voice_id = voice_id
             provider._speed = float(speed)
-            provider._pitch = int(pitch)  # type: ignore[attr-defined]
+            provider._pitch = int(pitch)
 
     def _on_minimax_error(self, error_msg: str, original_text: str) -> None:
         """Handle MiniMax error by falling back to SAPI.

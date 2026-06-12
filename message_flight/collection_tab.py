@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from message_flight.achievements import Achievement
+from message_flight.i18n import tr
 from message_flight.plane_presets import PRESETS, UNLOCKABLE_PRESETS
 
 
@@ -28,7 +29,8 @@ class PlanePresetCard(QWidget):
         name: str,
         icon: str,
         locked: bool,
-        unlock_achievement_name: Optional[str] = None,
+        unlock_achievement_name_i18n_key: Optional[str] = None,
+        language: str = "zh",
         parent: Optional[QWidget] = None,
     ) -> None:
         super().__init__(parent)
@@ -55,7 +57,7 @@ class PlanePresetCard(QWidget):
         layout.addWidget(self._lock_label)
 
         if locked:
-            self._lock_label.setText("🔒 Locked")
+            self._lock_label.setText(tr("collection.locked", language))
             self.setStyleSheet("background-color: #f0f0f0; color: #888888;")
             self._name_label.setEnabled(False)
             self._icon_label.setEnabled(False)
@@ -63,8 +65,9 @@ class PlanePresetCard(QWidget):
             self._lock_label.setText("")
             self.setStyleSheet("background-color: #ffffff; color: #000000;")
 
-        if locked and unlock_achievement_name:
-            self._lock_label.setToolTip(f"Unlock via: {unlock_achievement_name}")
+        if locked and unlock_achievement_name_i18n_key:
+            achievement_name = tr(unlock_achievement_name_i18n_key, language)
+            self._lock_label.setToolTip(tr("collection.unlock_via", language, name=achievement_name))
 
     def mousePressEvent(self, event) -> None:  # noqa: D401
         self.clicked.emit(self.preset_key)
@@ -78,6 +81,7 @@ class CollectionTab(QWidget):
         self,
         unlocked_presets: set[str],
         achievements: list[Achievement],
+        language: str = "zh",
         parent: Optional[QWidget] = None,
     ) -> None:
         super().__init__(parent)
@@ -105,13 +109,14 @@ class CollectionTab(QWidget):
 
         for key, cls in list(PRESETS.items()) + list(UNLOCKABLE_PRESETS.items()):
             locked = key not in unlocked_presets and key in UNLOCKABLE_PRESETS
-            achievement_name = unlock_map.get(key) if locked else None
+            achievement_name_i18n_key = unlock_map.get(key) if locked else None
             card = PlanePresetCard(
                 key=key,
                 name=cls.name,
                 icon=cls.icon,
                 locked=locked,
-                unlock_achievement_name=achievement_name,
+                unlock_achievement_name_i18n_key=achievement_name_i18n_key,
+                language=language,
             )
             self._cards.append(card)
             grid.addWidget(card, row, col)

@@ -11,7 +11,13 @@ from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QSystemTrayIcon
 from message_flight.achievement_engine import AchievementEngine
 from message_flight.achievements import ACHIEVEMENTS
 from message_flight.autostart import is_auto_start_enabled, set_auto_start
-from message_flight.config import is_dnd_active, load_config, save_config
+from message_flight.config import (
+    is_dnd_active,
+    load_config,
+    load_gamification_state,
+    save_config,
+    save_gamification_state,
+)
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
 from message_flight.i18n import tr
@@ -40,6 +46,7 @@ class TrayApplication:
 
         # Load persisted color scheme and hand it to the widget
         self.cfg = load_config()
+        self.state = load_gamification_state()
         self.language = self.cfg.language
         self.widget: FlightWidget = FlightWidget(plane_colors=self.cfg.colors, **self.cfg.flight_kwargs)
 
@@ -54,7 +61,7 @@ class TrayApplication:
         self.persona.rewrite_finished.connect(self._on_persona_rewritten)
 
         # Gamification engine (Task 17)
-        self._engine = AchievementEngine(self.cfg)
+        self._engine = AchievementEngine(self.state)
         self._toast_manager = ToastManager()
         self._engine.unlocked.connect(self._on_achievement_unlocked)
         self._engine.check_time_based()
@@ -352,9 +359,9 @@ class TrayApplication:
         if achievement is None:
             return
         if achievement.unlock_preset_key:
-            self.cfg.unlocked_presets.add(achievement.unlock_preset_key)
+            self.state.unlocked_presets.add(achievement.unlock_preset_key)
         try:
-            save_config(self.cfg)
+            save_gamification_state(self.state)
         except Exception as e:
             logger.warning("Failed to persist achievement unlock: %s", e)
         name = tr(achievement.name_i18n_key, self.language)
@@ -371,7 +378,7 @@ class TrayApplication:
         the TTS voice profile and the persona rewriter. Persists the new
         preset key to QSettings.
         """
-        cycle_order = [k for k, _, _ in list_available_presets(self.cfg.unlocked_presets)]
+        cycle_order = [k for k, _, _ in list_available_presets(self.state.unlocked_presets)]
         if not cycle_order:
             return
         try:
@@ -444,8 +451,13 @@ class TrayApplication:
             self._on_persona_rewritten(result or text)
 
     def _open_settings(self):
-        """Open the settings dialog (color scheme + flight mode). On accept, save config and apply changes."""
-        dlg = SettingsDialog(load_config(), self.menu)
+        """Open the settings dialog (color scheme + flight mode). On accept, save config and apply changes.
+
+        Uses the in-memory ``self.cfg`` (which reflects any unsaved
+        toggles like DND or preset cycling) rather than re-reading
+        from disk, so the dialog never shows stale data.
+        """
+        dlg = SettingsDialog(self.cfg, self.state.unlocked_presets, self.menu)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             new_cfg = dlg.get_result()
             persona_enabled, persona_prompts_json = dlg.get_persona_result()
@@ -466,13 +478,12 @@ class TrayApplication:
             )
 
     def _open_preset_editor(self):
-        cfg = load_config()
-        dlg = PresetEditorWindow(cfg, self.menu)
+        dlg = PresetEditorWindow(self.cfg, self.menu)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             preset_key, params_json = dlg.get_result()
-            cfg.plane_preset_key = preset_key
-            cfg.plane_preset_params_json = params_json
-            save_config(cfg)
+            self.cfg.plane_preset_key = preset_key
+            self.cfg.plane_preset_params_json = params_json
+            save_config(self.cfg)
             self._apply_preset_to_widget(preset_key, params_json)
             self._engine.record_preset_used(preset_key)
 

@@ -30,21 +30,20 @@ def fixed_noon(monkeypatch):
 
 def test_gamification_end_to_end(qapp, fixed_noon, tmp_path, monkeypatch):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import APP, ORG, AppConfig, load_config, save_config
+    from message_flight.config import (
+        APP,
+        ORG,
+        GamificationState,
+        load_gamification_state,
+        save_gamification_state,
+    )
     from message_flight.plane_presets import UNLOCKABLE_PRESETS, list_available_presets
 
-    cfg = AppConfig(
-        unlocked_presets=set(),
-        achievement_progress={},
-        distinct_notification_sources=set(),
-        presets_used=set(),
-        clicks=0,
-        tts_count=0,
-    )
-    assert cfg.unlocked_presets == set()
-    assert cfg.achievement_progress == {}
+    state = GamificationState()
+    assert state.unlocked_presets == set()
+    assert state.achievement_progress == {}
 
-    engine = AchievementEngine(cfg)
+    engine = AchievementEngine(state)
     unlocked = MagicMock()
     milestone = MagicMock()
     engine.unlocked.connect(unlocked)
@@ -52,9 +51,9 @@ def test_gamification_end_to_end(qapp, fixed_noon, tmp_path, monkeypatch):
 
     engine.record_notification(source="WeChat")
     unlocked.assert_called_once_with("first_flight")
-    assert "sleigh" in cfg.unlocked_presets
+    assert "sleigh" in state.unlocked_presets
 
-    available = list_available_presets(cfg.unlocked_presets)
+    available = list_available_presets(state.unlocked_presets)
     available_keys = [k for k, _, _ in available]
     assert "sleigh" in available_keys
     other_unlockables = set(UNLOCKABLE_PRESETS.keys()) - {"sleigh"}
@@ -63,13 +62,13 @@ def test_gamification_end_to_end(qapp, fixed_noon, tmp_path, monkeypatch):
     for key in available_keys:
         engine.record_preset_used(key)
     milestone.assert_any_call("try_them_all")
-    assert "try_them_all" in cfg.achievement_progress.get("_fired_milestones", set())
+    assert "try_them_all" in state.achievement_progress.get("_fired_milestones", set())
 
     for _ in range(49):
         engine.record_tts_speak()
     engine.record_tts_speak()
     milestone.assert_any_call("loud_mouth")
-    assert cfg.tts_count == 50
+    assert state.tts_count == 50
 
     ini_dir = tmp_path / "qsettings"
     ini_dir.mkdir()
@@ -78,15 +77,15 @@ def test_gamification_end_to_end(qapp, fixed_noon, tmp_path, monkeypatch):
     settings.clear()
     settings.sync()
 
-    save_config(cfg, settings=settings)
-    loaded = load_config(settings=settings)
+    save_gamification_state(state, settings=settings)
+    loaded = load_gamification_state(settings=settings)
 
-    assert loaded.unlocked_presets == cfg.unlocked_presets
-    assert loaded.achievement_progress == cfg.achievement_progress
-    assert loaded.distinct_notification_sources == cfg.distinct_notification_sources
-    assert loaded.presets_used == cfg.presets_used
-    assert loaded.clicks == cfg.clicks
-    assert loaded.tts_count == cfg.tts_count
+    assert loaded.unlocked_presets == state.unlocked_presets
+    assert loaded.achievement_progress == state.achievement_progress
+    assert loaded.distinct_notification_sources == state.distinct_notification_sources
+    assert loaded.presets_used == state.presets_used
+    assert loaded.clicks == state.clicks
+    assert loaded.tts_count == state.tts_count
 
     engine2 = AchievementEngine(loaded)
     re_unlocked = MagicMock()

@@ -264,7 +264,7 @@ def test_audio_frames_flow_from_listener_to_stt_manager(qapp) -> None:
     stt.transcribed = MagicMock()
     stt.error_occurred = MagicMock()
 
-    mgr = STTManager(cfg, listener=listener, stt=stt)
+    mgr = STTManager(cfg, listener=listener, stt=stt)  # type: ignore[arg-type]
     listener.audio_frame.connect(mgr._on_audio_chunk)
     mgr.start()
 

@@ -237,7 +237,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8,<1.15" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "openwakeword", specifier = ">=0.6.0" },
     { name = "pygame", specifier = ">=2.5.0" },
     { name = "pyqt6", specifier = ">=6.5.0" },
@@ -245,7 +245,7 @@ requires-dist = [
     { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "pywin32", marker = "sys_platform == 'win32'", specifier = ">=227" },
     { name = "sounddevice", specifier = ">=0.4.6" },
-    { name = "types-pywin32", marker = "python_full_version >= '3.9' and extra == 'dev'", specifier = ">=311" },
+    { name = "types-pywin32", marker = "extra == 'dev'", specifier = ">=311" },
     { name = "winsdk", specifier = ">=1.0.0b10" },
 ]
 provides-extras = ["dev"]

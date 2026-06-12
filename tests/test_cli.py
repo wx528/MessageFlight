@@ -11,7 +11,7 @@ def test_main_configures_logging_and_runs_tray_app():
         main()
 
     basic_config.assert_called_once_with(
-        level=10,
+        level=20,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%H:%M:%S",
     )

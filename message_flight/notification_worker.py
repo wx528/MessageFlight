@@ -1,7 +1,10 @@
 """Background thread for listening to the Windows notification center."""
 import asyncio
+import logging
 
 from PyQt6.QtCore import QThread, pyqtSignal
+
+logger = logging.getLogger(__name__)
 
 try:
     from winsdk.windows.ui.notifications import KnownNotificationBindings, NotificationKinds
@@ -89,7 +92,7 @@ class NotificationWorker(QThread):
                         'text': ' | '.join(lines)
                     })
             except Exception:
-                pass
+                logger.debug("Failed to parse notification", exc_info=True)
         return access, result
 
     def stop(self):

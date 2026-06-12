@@ -367,7 +367,7 @@ def test_on_plane_clicked_cycles_to_next_preset():
 
 def test_on_plane_clicked_wraps_around():
     """The last preset in the cycle should wrap back to the first."""
-    from message_flight.config import AppConfig
+    from message_flight.config import AppConfig, GamificationState
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -384,6 +384,7 @@ def test_on_plane_clicked_wraps_around():
         mock_tts_cls.return_value = mock_tts
         app = TrayApplication()
         app.cfg = AppConfig(plane_preset_key="bird", plane_preset_params_json="")
+        app.state = GamificationState()
         app.persona = MagicMock()
 
         app._on_plane_clicked()
@@ -468,7 +469,7 @@ def test_tray_app_creates_achievement_engine():
 
 def test_achievement_unlocked_adds_preset_and_shows_toast():
     """Unlocking an achievement must persist the reward preset and show a toast."""
-    from message_flight.config import AppConfig
+    from message_flight.config import AppConfig, GamificationState
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -480,15 +481,16 @@ def test_achievement_unlocked_adds_preset_and_shows_toast():
          patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
          patch("message_flight.tray_app.TTSManager"), \
          patch("message_flight.tray_app.ToastManager") as mock_toast_cls, \
-         patch("message_flight.tray_app.save_config"):
+         patch("message_flight.tray_app.save_gamification_state"):
         mock_toast = MagicMock()
         mock_toast_cls.return_value = mock_toast
         app = TrayApplication()
         app.cfg = AppConfig()
+        app.state = GamificationState()
 
         app._engine.unlocked.emit("first_flight")
 
-        assert "sleigh" in app.cfg.unlocked_presets
+        assert "sleigh" in app.state.unlocked_presets
         mock_toast.show_toast.assert_called_once()
         call_kwargs = mock_toast.show_toast.call_args.kwargs
         assert call_kwargs["icon"] == "🎅"
@@ -554,7 +556,7 @@ def test_preset_change_records_engine_event():
 
 def test_plane_click_cycles_only_available_presets():
     """Only defaults plus unlocked presets appear in the click cycle."""
-    from message_flight.config import AppConfig
+    from message_flight.config import AppConfig, GamificationState
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -571,8 +573,8 @@ def test_plane_click_cycles_only_available_presets():
         app.cfg = AppConfig(
             plane_preset_key="airplane",
             plane_preset_params_json="",
-            unlocked_presets={"sleigh"},
         )
+        app.state = GamificationState(unlocked_presets={"sleigh"})
         app.persona = MagicMock()
 
         keys = []
@@ -585,7 +587,7 @@ def test_plane_click_cycles_only_available_presets():
 
 def test_plane_click_falls_back_when_current_locked():
     """If current preset is locked/unavailable, click falls back to first default."""
-    from message_flight.config import AppConfig
+    from message_flight.config import AppConfig, GamificationState
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -602,8 +604,8 @@ def test_plane_click_falls_back_when_current_locked():
         app.cfg = AppConfig(
             plane_preset_key="duck",
             plane_preset_params_json="",
-            unlocked_presets=set(),
         )
+        app.state = GamificationState(unlocked_presets=set())
         app.persona = MagicMock()
 
         app._on_plane_clicked()
@@ -614,7 +616,7 @@ def test_plane_click_falls_back_when_current_locked():
 
 def test_unlocked_preset_appears_in_cycle():
     """An unlocked preset should appear in the click cycle after the defaults."""
-    from message_flight.config import AppConfig
+    from message_flight.config import AppConfig, GamificationState
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -631,8 +633,8 @@ def test_unlocked_preset_appears_in_cycle():
         app.cfg = AppConfig(
             plane_preset_key="airplane",
             plane_preset_params_json="",
-            unlocked_presets={"duck"},
         )
+        app.state = GamificationState(unlocked_presets={"duck"})
         app.persona = MagicMock()
 
         keys = []

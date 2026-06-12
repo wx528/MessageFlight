@@ -9,7 +9,6 @@ import pytest
 from PyQt6.QtWidgets import QApplication
 
 from message_flight.achievements import ACHIEVEMENTS
-from message_flight.config import AppConfig
 
 
 @pytest.fixture(scope="module")
@@ -30,8 +29,7 @@ def _card_for_key(tab, key: str):
 def test_collection_tab_shows_all_presets(qapp):
     from message_flight.collection_tab import CollectionTab, PlanePresetCard
 
-    cfg = AppConfig()
-    tab = CollectionTab(unlocked_presets=cfg.unlocked_presets, achievements=ACHIEVEMENTS)
+    tab = CollectionTab(unlocked_presets=set(), achievements=ACHIEVEMENTS)
 
     cards = tab.findChildren(PlanePresetCard)
     assert len(cards) == 9
@@ -48,7 +46,7 @@ def test_unlocked_cards_not_locked(qapp):
 def test_locked_card_has_lock_indicator(qapp):
     from message_flight.collection_tab import CollectionTab
 
-    tab = CollectionTab(unlocked_presets=set(), achievements=ACHIEVEMENTS)
+    tab = CollectionTab(unlocked_presets=set(), achievements=ACHIEVEMENTS, language="en")
     card = _card_for_key(tab, "duck")
     assert card.locked is True
     assert "Locked" in card._lock_label.text()

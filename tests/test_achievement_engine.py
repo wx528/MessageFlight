@@ -30,25 +30,25 @@ def fixed_noon(monkeypatch):
 
 def test_engine_emits_unlocked_on_first_notification(qapp, fixed_noon):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.unlocked.connect(fired)
 
     engine.record_notification(source="WeChat")
 
     fired.assert_called_once_with("first_flight")
-    assert "sleigh" in cfg.unlocked_presets
+    assert "sleigh" in state.unlocked_presets
 
 
 def test_engine_does_not_double_emit_unlocked(qapp, fixed_noon):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.unlocked.connect(fired)
 
@@ -63,10 +63,10 @@ def test_engine_does_not_double_emit_unlocked(qapp, fixed_noon):
 
 def test_engine_centurion_fires_at_100(qapp, fixed_noon):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.unlocked.connect(fired)
 
@@ -81,10 +81,10 @@ def test_engine_centurion_fires_at_100(qapp, fixed_noon):
 
 def test_engine_social_butterfly_fires_at_5_distinct(qapp, fixed_noon):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.unlocked.connect(fired)
 
@@ -98,10 +98,10 @@ def test_engine_social_butterfly_fires_at_5_distinct(qapp, fixed_noon):
 def test_engine_milestone_does_not_refire_on_new_engine(qapp, fixed_noon):
     """A milestone fired in one engine instance must not refire after restart."""
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine1 = AchievementEngine(cfg)
+    state = GamificationState()
+    engine1 = AchievementEngine(state)
     fired1 = MagicMock()
     engine1.milestone.connect(fired1)
 
@@ -109,10 +109,10 @@ def test_engine_milestone_does_not_refire_on_new_engine(qapp, fixed_noon):
         engine1.record_plane_click()
 
     fired1.assert_called_once_with("clicker")
-    assert "clicker" in cfg.achievement_progress.get("_fired_milestones", set())
+    assert "clicker" in state.achievement_progress.get("_fired_milestones", set())
 
-    # Simulate process restart: create a new engine with the same cfg
-    engine2 = AchievementEngine(cfg)
+    # Simulate process restart: create a new engine with the same state
+    engine2 = AchievementEngine(state)
     fired2 = MagicMock()
     engine2.milestone.connect(fired2)
     engine2.record_plane_click()
@@ -125,10 +125,10 @@ def test_engine_night_owl_fires_when_hour_in_window(qapp, monkeypatch):
     from datetime import datetime
 
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.unlocked.connect(fired)
 
@@ -141,17 +141,17 @@ def test_engine_night_owl_fires_when_hour_in_window(qapp, monkeypatch):
     engine.record_notification(source="WeChat")
     ids = [c.args[0] for c in fired.call_args_list]
     assert "night_owl" in ids
-    assert "gold_ufo" in cfg.unlocked_presets
+    assert "gold_ufo" in state.unlocked_presets
 
 
 def test_engine_early_bird_fires_when_hour_in_window(qapp, monkeypatch):
     from datetime import datetime
 
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.unlocked.connect(fired)
 
@@ -164,15 +164,15 @@ def test_engine_early_bird_fires_when_hour_in_window(qapp, monkeypatch):
     engine.record_notification(source="WeChat")
     ids = [c.args[0] for c in fired.call_args_list]
     assert "early_bird" in ids
-    assert "pixel_bird" in cfg.unlocked_presets
+    assert "pixel_bird" in state.unlocked_presets
 
 
 def test_clicker_fires_after_enough_clicks(qapp, fixed_noon):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.milestone.connect(fired)
 
@@ -190,10 +190,10 @@ def test_clicker_fires_after_enough_clicks(qapp, fixed_noon):
 
 def test_loud_mouth_fires_after_enough_messages(qapp, fixed_noon):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.milestone.connect(fired)
 
@@ -211,10 +211,10 @@ def test_loud_mouth_fires_after_enough_messages(qapp, fixed_noon):
 
 def test_try_them_all_fires_after_all_available_presets(qapp, fixed_noon):
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.config import AppConfig
+    from message_flight.config import GamificationState
 
-    cfg = AppConfig()
-    engine = AchievementEngine(cfg)
+    state = GamificationState()
+    engine = AchievementEngine(state)
     fired = MagicMock()
     engine.milestone.connect(fired)
 

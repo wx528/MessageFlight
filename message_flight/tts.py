@@ -21,9 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class TTSReader:
-    """Abstract TTS reader that formats a message through a template and
+    """Mixin that formats a message through a template and
     delegates speaking to :meth:`_speak_impl`.
     """
+
+    _enabled: bool = True
+    _title_template: str = "{message}"
 
     def __init__(self, enabled: bool = True, title_template: str = "{message}"):
         self._enabled = enabled
@@ -57,8 +60,8 @@ class SAPIReader(TTSReader):
     initialization silently fails and :meth:`speak` becomes a no-op.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, enabled: bool = True, title_template: str = "{message}"):
+        super().__init__(enabled=enabled, title_template=title_template)
         if self._enabled:
             self._init_sapi()
 
@@ -111,8 +114,9 @@ class MiniMaxReader(TTSReader, QObject):
         enabled: bool = True,
         title_template: str = "{message}",
     ):
-        TTSReader.__init__(self, enabled=enabled, title_template=title_template)
         QObject.__init__(self)
+        self._enabled = enabled
+        self._title_template = title_template
         self._api_key = api_key
         self._voice_id = voice_id
         self._speed = speed
@@ -297,3 +301,11 @@ class MiniMaxReader(TTSReader, QObject):
         for path in list(self._active_audio_files):
             self._remove_audio_file(path)
         self._active_audio_files.clear()
+
+    def set_api_key(self, api_key: str) -> None:
+        self._api_key = api_key
+
+    def set_voice_profile(self, voice_id: str, speed: float, pitch: int) -> None:
+        self._voice_id = voice_id
+        self._speed = float(speed)
+        self._pitch = int(pitch)

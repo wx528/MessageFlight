@@ -1,6 +1,7 @@
 """Modal settings dialog for editing the 9-color plane/banner palette and the flight mode preset."""
 from __future__ import annotations
 
+import dataclasses
 import json
 from typing import Optional
 
@@ -57,7 +58,12 @@ class SettingsDialog(QDialog):
     and then forward the new colors to ``PlaneBanner.update_colors``.
     """
 
-    def __init__(self, initial: AppConfig, parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        initial: AppConfig,
+        unlocked_presets: Optional[set[str]] = None,
+        parent: Optional[QWidget] = None,
+    ):
         super().__init__(parent)
         self._config = initial
         self._language = initial.language
@@ -82,8 +88,9 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(general_tab, tr("settings.title", self._language))
 
         self._collection_tab = CollectionTab(
-            self._config.unlocked_presets,
+            unlocked_presets if unlocked_presets is not None else set(),
             ACHIEVEMENTS,
+            language=self._language,
         )
         self.tabs.addTab(
             self._collection_tab,
@@ -150,7 +157,7 @@ class SettingsDialog(QDialog):
         self._persona_preset_combo = QComboBox()
         for key, name, _icon in list_presets():
             self._persona_preset_combo.addItem(f"{name} ({key})", key)
-        self._persona_preset_combo.setCurrentText("airplane")
+        self._persona_preset_combo.setCurrentText(initial.plane_preset_key)
         self._persona_preset_combo.currentIndexChanged.connect(self._on_persona_preset_changed)
         preset_picker_row.addWidget(self._persona_preset_combo)
 
@@ -264,17 +271,17 @@ class SettingsDialog(QDialog):
             text = self._line_edits[key].text().strip()
             qc = QColor(text)
             colors[key] = qc.name() if qc.isValid() else text
-        return AppConfig(
-            theme_name=self._current_theme_name,
-            colors=colors,
-            flight_mode=self._current_flight_mode,
-            flight_kwargs=dict(self._current_flight_kwargs),
-            tts_provider=self._provider_combo.currentText(),
-            minimax_subscription_key=self._api_key_edit.text(),
-            language=self._language_combo.currentData(),
-            stt_enabled=self._voice_enabled_checkbox.isChecked(),
-            stt_wake_word=self._voice_wake_word_combo.currentData() or "hey_jarvis",
-        )
+        result = dataclasses.replace(self._config)
+        result.theme_name = self._current_theme_name
+        result.colors = colors
+        result.flight_mode = self._current_flight_mode
+        result.flight_kwargs = dict(self._current_flight_kwargs)
+        result.tts_provider = self._provider_combo.currentText()
+        result.minimax_subscription_key = self._api_key_edit.text()
+        result.language = self._language_combo.currentData()
+        result.stt_enabled = self._voice_enabled_checkbox.isChecked()
+        result.stt_wake_word = self._voice_wake_word_combo.currentData() or "hey_jarvis"
+        return result
 
     # ------------------------------------------------------------------
     # Internals

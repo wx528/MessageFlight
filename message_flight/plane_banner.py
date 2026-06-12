@@ -1,4 +1,5 @@
 """Custom QWidget that draws a plane with a notification banner."""
+import contextlib
 from typing import Optional
 
 from PyQt6.QtCore import (  # type: ignore[attr-defined]
@@ -244,7 +245,8 @@ class PlaneBanner(QWidget):
             self._text_color = QColor(text_color)
             if hasattr(self._params, "text_color"):
                 self._params.text_color = text_color
-        self.__dict__.pop("_plane_cache", None)
+        with contextlib.suppress(AttributeError):
+            del self._plane_cache
         self.update()
 
     def apply_preset(self, preset, params) -> None:
@@ -255,7 +257,8 @@ class PlaneBanner(QWidget):
         if hasattr(params, "text_color"):
             self._text_color = QColor(params.text_color)
         self._recalculate_size()
-        self.__dict__.pop("_plane_cache", None)
+        with contextlib.suppress(AttributeError):
+            del self._plane_cache
         self.update()
 
     def paintEvent(self, event):

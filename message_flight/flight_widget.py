@@ -1,13 +1,16 @@
 """Main flight widget that animates the plane across the screen."""
+import logging
 import random
 from typing import Any, Optional
 
-from PyQt6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer
+from PyQt6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.notification_queue import NotificationQueue
 from message_flight.plane_banner import PlaneBanner
+
+logger = logging.getLogger(__name__)
 
 _VALID_FLY_PATHS = (
     "horizontal",
@@ -102,11 +105,6 @@ class FlightWidget(QWidget):
         self._setup_fly_animation()
 
         self.msg_index = 0
-        # 禁用自动轮播演示消息（只在用户点击"发送演示通知"时切换）
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self._next_message)
-        # 不再自动启动 timer
-        # self.timer.start(self._notification_interval_ms)
 
         self._paused = False
 
@@ -370,16 +368,21 @@ class FlightWidget(QWidget):
             self.plane.set_facing_direction(-1)
         self.fly_anim.start()
 
-    def _next_message(self):
-        self.msg_index = (self.msg_index + 1) % len(NOTIFICATIONS)
-        self.plane.set_text(NOTIFICATIONS[self.msg_index])
-
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
             self.hide()
 
+    _ACCEPTED_FLIGHT_KWARGS = frozenset({
+        "fly_path", "fly_loop_count", "fly_bounce", "fly_duration_ms",
+        "float_duration_ms", "notification_interval_ms", "vertical_jitter",
+        "re_flight_y_ratio", "re_flight_x_ratio", "re_flight_jitter",
+    })
+
     def set_flight_kwargs(self, **kwargs) -> None:
         """热更新飞行参数，无需重启应用。"""
+        unknown = set(kwargs) - self._ACCEPTED_FLIGHT_KWARGS
+        if unknown:
+            logger.warning("set_flight_kwargs: ignoring unknown keys: %s", unknown)
         if "fly_path" in kwargs:
             self._fly_path = kwargs["fly_path"]
         if "fly_loop_count" in kwargs:
@@ -392,7 +395,6 @@ class FlightWidget(QWidget):
             self._float_duration_ms = int(kwargs["float_duration_ms"])
         if "notification_interval_ms" in kwargs:
             self._notification_interval_ms = int(kwargs["notification_interval_ms"])
-            self.timer.setInterval(self._notification_interval_ms)
         if "vertical_jitter" in kwargs:
             self._vertical_jitter = int(kwargs["vertical_jitter"])
         if "re_flight_y_ratio" in kwargs:
@@ -423,12 +425,9 @@ class FlightWidget(QWidget):
         if paused:
             self.fly_anim.pause()
             self.float_anim.pause()
-            self.timer.stop()
         else:
             self.fly_anim.resume()
             self.float_anim.resume()
-            # timer 不再自动启动
-            # self.timer.start()
 
     def is_paused(self):
         return self._paused
@@ -467,4 +466,3 @@ class FlightWidget(QWidget):
         self._fly_stopped = False
         # 根据当前路径模式重新初始化飞行动画
         self._setup_fly_animation()
-        self.timer.stop()

@@ -283,6 +283,68 @@ def test_settings_dialog_has_collection_tab(qapp):
     assert found_collection_widget, "Collection tab should contain a CollectionTab instance"
 
 
+def test_get_result_returns_appconfig_only(qapp):
+    """get_result() returns only user-setting fields. Gamification state
+    is now passed to the dialog separately so it cannot be clobbered."""
+    cfg = AppConfig(
+        plane_preset_key="rocket",
+        plane_preset_params_json='{"wing_color": "#123456"}',
+        dnd_enabled=True,
+        dnd_schedule_enabled=True,
+        dnd_schedule_start="23:00",
+        dnd_schedule_end="07:00",
+        persona_enabled=False,
+        persona_prompts_json='{"airplane": "captain"}',
+    )
+    dlg = SettingsDialog(cfg, unlocked_presets={"duck", "sleigh"})
+    dlg.accept()
+
+    result = dlg.get_result()
+    assert result.dnd_enabled is True
+    assert result.dnd_schedule_enabled is True
+    assert result.dnd_schedule_start == "23:00"
+    assert result.dnd_schedule_end == "07:00"
+    assert result.plane_preset_key == "rocket"
+    assert result.plane_preset_params_json == '{"wing_color": "#123456"}'
+    assert result.persona_enabled is False
+    assert result.persona_prompts_json == '{"airplane": "captain"}'
+    # The dialog must NOT have any gamification fields on the result.
+    assert not hasattr(result, "unlocked_presets")
+    assert not hasattr(result, "clicks")
+    assert not hasattr(result, "tts_count")
+
+
+def test_dialog_uses_provided_unlocked_presets(qapp):
+    """SettingsDialog must use the unlocked_presets passed in, not fields from AppConfig."""
+    from message_flight.collection_tab import CollectionTab, PlanePresetCard
+
+    cfg = AppConfig()
+    dlg = SettingsDialog(cfg, unlocked_presets={"sleigh"})
+
+    collection_tab = None
+    for i in range(dlg.tabs.count()):
+        if isinstance(dlg.tabs.widget(i), CollectionTab):
+            collection_tab = dlg.tabs.widget(i)
+            break
+    assert collection_tab is not None
+
+    sleigh_card = None
+    for card in collection_tab.findChildren(PlanePresetCard):
+        if card.preset_key == "sleigh":
+            sleigh_card = card
+            break
+    assert sleigh_card is not None
+    assert sleigh_card.locked is False
+
+    duck_card = None
+    for card in collection_tab.findChildren(PlanePresetCard):
+        if card.preset_key == "duck":
+            duck_card = card
+            break
+    assert duck_card is not None
+    assert duck_card.locked is True
+
+
 def test_settings_dialog_has_voice_tab(qapp):
     from message_flight.config import AppConfig
     from message_flight.settings_dialog import SettingsDialog

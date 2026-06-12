@@ -6,6 +6,25 @@ schemes: ``default``, ``retro`` (green), and ``cyber`` (synthwave).
 The file uses ``QSettings.Format.IniFormat`` for portability and
 inspectability on Windows (the default backend is the registry, which
 is harder for users to find and edit by hand).
+
+Architecture note — :class:`AppConfig` vs :class:`GamificationState`:
+The persisted data is intentionally split into two dataclasses that
+share one QSettings key space but are loaded/saved via separate
+functions (``load_config`` / ``save_config`` vs
+``load_gamification_state`` / ``save_gamification_state``).
+
+* ``AppConfig`` — user-configurable settings (colors, flight mode,
+  language, DND schedule, persona prompts, etc). The settings dialog
+  is allowed to construct a fresh ``AppConfig`` from its form fields.
+* ``GamificationState`` — mutable runtime counters (achievement
+  progress, click counts, unlocked presets) owned by the achievement
+  engine. The settings dialog has no path to mutate it; only the
+  engine writes to it, and only ``save_gamification_state`` reads it.
+
+This split prevents the historical bug where opening the settings
+dialog and clicking OK silently zeroed out the user's earned
+achievements and unlocked presets, because the dialog's ``get_result``
+returns an ``AppConfig`` that physically has no such fields.
 """
 from __future__ import annotations
 
@@ -13,6 +32,7 @@ import contextlib
 import datetime
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -200,7 +220,13 @@ def validate_flight_kwargs(kwargs: dict[str, Any]) -> None:
 
 @dataclass
 class AppConfig:
-    """Resolved application configuration consumed by the UI layer."""
+    """Resolved application configuration consumed by the UI layer.
+
+    Contains only user-configurable settings. Runtime/mutable state
+    (achievement progress, click counts, unlocked presets) lives in
+    :class:`GamificationState` and is loaded/saved separately so the
+    settings dialog cannot accidentally clobber it.
+    """
 
     theme_name: str = DEFAULT_THEME
     colors: dict[str, str] = field(default_factory=dict)
@@ -213,13 +239,6 @@ class AppConfig:
     language: str = field(default_factory=detect_system_language)
     plane_preset_key: str = "airplane"
     plane_preset_params_json: str = ""
-    # Gamification (v0.2.7+)
-    unlocked_presets: set[str] = field(default_factory=set)
-    achievement_progress: dict[str, Any] = field(default_factory=dict)
-    distinct_notification_sources: set[str] = field(default_factory=set)
-    presets_used: set[str] = field(default_factory=set)
-    clicks: int = 0
-    tts_count: int = 0
     # Do-Not-Disturb
     dnd_enabled: bool = False
     dnd_schedule_enabled: bool = False
@@ -231,6 +250,23 @@ class AppConfig:
     # Voice input (v0.4.0+)
     stt_enabled: bool = False
     stt_wake_word: str = "hey_jarvis"
+
+
+@dataclass
+class GamificationState:
+    """Mutable runtime state owned by the achievement engine.
+
+    Kept separate from :class:`AppConfig` so the settings dialog's
+    ``get_result()`` cannot accidentally reset achievement progress
+    or other runtime counters when the user opens settings.
+    """
+
+    unlocked_presets: set[str] = field(default_factory=set)
+    achievement_progress: dict[str, Any] = field(default_factory=dict)
+    distinct_notification_sources: set[str] = field(default_factory=set)
+    presets_used: set[str] = field(default_factory=set)
+    clicks: int = 0
+    tts_count: int = 0
 
 
 def _parse_hhmm(text: str) -> Optional[int]:
@@ -348,8 +384,34 @@ def _parse_semicolon_set(raw: Any) -> set[str]:
     return {s for s in str(raw).split(";") if s}
 
 
+def _open_settings_or_default(
+    settings: QSettings | None,
+    *,
+    func_name: str,
+    on_open_failure: Callable[[], Any],
+    on_read_failure: Callable[[Exception], Any],
+    reader: Callable[[QSettings], Any],
+) -> Any:
+    """Open QSettings and run *reader*, falling back via the supplied factories on failure.
+
+    Consolidates the QSettings-acquisition + try/except boilerplate
+    shared by :func:`load_config` and :func:`load_gamification_state`.
+    """
+    if settings is None:
+        try:
+            settings = _new_settings()
+        except Exception as e:
+            print(f"{func_name}: failed to open QSettings ({e!r}); using defaults", file=sys.stderr)
+            return on_open_failure()
+    try:
+        return reader(settings)
+    except Exception as e:
+        print(f"{func_name}: failed to read keys ({e!r}); using defaults", file=sys.stderr)
+        return on_read_failure(e)
+
+
 def load_config(settings: QSettings | None = None) -> AppConfig:
-    """Read the persisted config, falling back to defaults on any failure.
+    """Read the persisted user settings, falling back to defaults on any failure.
 
     If the INI file is missing, corrupt, or only partially populated,
     missing keys are silently replaced with the active theme's defaults
@@ -359,15 +421,11 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
     If ``settings`` is provided, that QSettings instance is used directly
     (useful for tests). Otherwise a fresh QSettings is built from the
     user-scope INI directory.
-    """
-    if settings is None:
-        try:
-            settings = _new_settings()
-        except Exception as e:
-            print(f"load_config: failed to open QSettings ({e!r}); using defaults", file=sys.stderr)
-            return _default_config()
 
-    try:
+    Note: Gamification state (achievements, click counts, etc.) is NOT
+    returned here. Use :func:`load_gamification_state` for that.
+    """
+    def _reader(settings: QSettings) -> AppConfig:
         theme_name = str(settings.value(SETTINGS_KEY, DEFAULT_THEME))
         if theme_name not in THEMES:
             theme_name = DEFAULT_THEME
@@ -413,7 +471,43 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
         # Voice input
         stt_enabled = _parse_bool(settings.value(STT_ENABLED_KEY, False))
         stt_wake_word = str(settings.value(STT_WAKE_WORD_KEY, "hey_jarvis"))
-        # Gamification (v0.2.7+)
+
+        return AppConfig(
+            theme_name=theme_name,
+            colors=colors,
+            flight_mode=flight_mode,
+            flight_kwargs=flight_kwargs,
+            tts_provider=tts_provider,
+            minimax_subscription_key=minimax_subscription_key,
+            language=language,
+            plane_preset_key=plane_preset_key,
+            plane_preset_params_json=plane_preset_params_json,
+            dnd_enabled=dnd_enabled,
+            dnd_schedule_enabled=dnd_schedule_enabled,
+            dnd_schedule_start=dnd_schedule_start,
+            dnd_schedule_end=dnd_schedule_end,
+            persona_enabled=persona_enabled,
+            persona_prompts_json=persona_prompts_json,
+            stt_enabled=stt_enabled,
+            stt_wake_word=stt_wake_word,
+        )
+
+    return _open_settings_or_default(  # type: ignore[no-any-return]
+        settings,
+        func_name="load_config",
+        on_open_failure=_default_config,
+        on_read_failure=lambda _e: _default_config(),
+        reader=_reader,
+    )
+
+
+def load_gamification_state(settings: QSettings | None = None) -> GamificationState:
+    """Read the persisted gamification state, falling back to defaults on any failure.
+
+    Uses the same QSettings instance and key space as :func:`load_config`,
+    so both can be called with the same ``settings`` object in tests.
+    """
+    def _reader(settings: QSettings) -> GamificationState:
         unlocked_presets = _parse_semicolon_set(settings.value(UNLOCKED_PRESETS_KEY, ""))
 
         progress_raw = settings.value(ACHIEVEMENT_PROGRESS_KEY, "{}")
@@ -436,43 +530,34 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
             tts_count = int(settings.value(TTS_COUNT_KEY, 0))
         except (TypeError, ValueError):
             tts_count = 0
-    except Exception as e:
-        print(f"load_config: failed to read keys ({e!r}); using defaults", file=sys.stderr)
-        return _default_config()
 
-    return AppConfig(
-        theme_name=theme_name,
-        colors=colors,
-        flight_mode=flight_mode,
-        flight_kwargs=flight_kwargs,
-        tts_provider=tts_provider,
-        minimax_subscription_key=minimax_subscription_key,
-        language=language,
-        plane_preset_key=plane_preset_key,
-        plane_preset_params_json=plane_preset_params_json,
-        dnd_enabled=dnd_enabled,
-        dnd_schedule_enabled=dnd_schedule_enabled,
-        dnd_schedule_start=dnd_schedule_start,
-        dnd_schedule_end=dnd_schedule_end,
-        persona_enabled=persona_enabled,
-        persona_prompts_json=persona_prompts_json,
-        stt_enabled=stt_enabled,
-        stt_wake_word=stt_wake_word,
-        unlocked_presets=unlocked_presets,
-        achievement_progress=achievement_progress,
-        distinct_notification_sources=distinct_notification_sources,
-        presets_used=presets_used,
-        clicks=clicks,
-        tts_count=tts_count,
+        return GamificationState(
+            unlocked_presets=unlocked_presets,
+            achievement_progress=achievement_progress,
+            distinct_notification_sources=distinct_notification_sources,
+            presets_used=presets_used,
+            clicks=clicks,
+            tts_count=tts_count,
+        )
+
+    return _open_settings_or_default(  # type: ignore[no-any-return]
+        settings,
+        func_name="load_gamification_state",
+        on_open_failure=GamificationState,
+        on_read_failure=lambda _e: GamificationState(),
+        reader=_reader,
     )
 
 
 def save_config(cfg: AppConfig, settings: QSettings | None = None) -> None:
-    """Persist the given config to disk. Errors are logged, not raised.
+    """Persist user settings to disk. Errors are logged, not raised.
 
     If ``settings`` is provided, that QSettings instance is used directly
     (useful for tests). Otherwise a fresh QSettings is built from the
     user-scope INI directory.
+
+    Note: Only settings fields are saved. Gamification state is saved
+    via :func:`save_gamification_state`.
     """
     try:
         # Validate the flight_kwargs before persisting; on failure, fall
@@ -506,15 +591,29 @@ def save_config(cfg: AppConfig, settings: QSettings | None = None) -> None:
         settings.setValue(PERSONA_PROMPTS_JSON_KEY, cfg.persona_prompts_json)
         settings.setValue(STT_ENABLED_KEY, cfg.stt_enabled)
         settings.setValue(STT_WAKE_WORD_KEY, cfg.stt_wake_word)
-        settings.setValue(UNLOCKED_PRESETS_KEY, ";".join(sorted(cfg.unlocked_presets)))
-        settings.setValue(ACHIEVEMENT_PROGRESS_KEY, json.dumps(cfg.achievement_progress))
-        settings.setValue(DISTINCT_SOURCES_KEY, ";".join(sorted(cfg.distinct_notification_sources)))
-        settings.setValue(PRESETS_USED_KEY, ";".join(sorted(cfg.presets_used)))
-        settings.setValue(CLICKS_KEY, cfg.clicks)
-        settings.setValue(TTS_COUNT_KEY, cfg.tts_count)
         settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)
+
+
+def save_gamification_state(state: GamificationState, settings: QSettings | None = None) -> None:
+    """Persist gamification state to disk. Errors are logged, not raised.
+
+    Uses the same QSettings key space as :func:`save_config`, so it can
+    be called with the same instance (or independently).
+    """
+    try:
+        if settings is None:
+            settings = _new_settings()
+        settings.setValue(UNLOCKED_PRESETS_KEY, ";".join(sorted(state.unlocked_presets)))
+        settings.setValue(ACHIEVEMENT_PROGRESS_KEY, json.dumps(state.achievement_progress))
+        settings.setValue(DISTINCT_SOURCES_KEY, ";".join(sorted(state.distinct_notification_sources)))
+        settings.setValue(PRESETS_USED_KEY, ";".join(sorted(state.presets_used)))
+        settings.setValue(CLICKS_KEY, state.clicks)
+        settings.setValue(TTS_COUNT_KEY, state.tts_count)
+        settings.sync()
+    except Exception as e:
+        print(f"save_gamification_state: failed to persist ({e!r})", file=sys.stderr)
 
 
 def _parse_bool(value: Any) -> bool:
@@ -552,6 +651,4 @@ def _default_config() -> AppConfig:
         dnd_schedule_end="08:00",
         persona_enabled=True,
         persona_prompts_json="",
-        stt_enabled=False,
-        stt_wake_word="hey_jarvis",
     )

@@ -16,9 +16,12 @@ from message_flight.config import (
     ORG,
     THEMES,
     AppConfig,
+    GamificationState,
     is_dnd_active,
     load_config,
+    load_gamification_state,
     save_config,
+    save_gamification_state,
 )
 
 
@@ -326,20 +329,21 @@ def test_save_load_persona_prompts_round_trip(isolated_settings):
 
 
 def test_app_config_new_fields_round_trip(tmp_path, monkeypatch):
-    """The 6 new gamification fields must round-trip through QSettings."""
+    """The 6 gamification fields must round-trip through QSettings."""
     monkeypatch.setenv("MESSAGEFLIGHT_CONFIG_DIR", str(tmp_path))
     settings = QSettings(str(tmp_path / "test.ini"), QSettings.Format.IniFormat)
 
-    cfg = AppConfig()
-    cfg.unlocked_presets = {"sleigh", "duck"}
-    cfg.achievement_progress = {"clicker": 7}
-    cfg.distinct_notification_sources = {"WeChat", "Outlook"}
-    cfg.presets_used = {"airplane", "rocket", "ufo", "bird"}
-    cfg.clicks = 42
-    cfg.tts_count = 17
+    state = GamificationState(
+        unlocked_presets={"sleigh", "duck"},
+        achievement_progress={"clicker": 7},
+        distinct_notification_sources={"WeChat", "Outlook"},
+        presets_used={"airplane", "rocket", "ufo", "bird"},
+        clicks=42,
+        tts_count=17,
+    )
 
-    save_config(cfg, settings=settings)
-    loaded = load_config(settings=settings)
+    save_gamification_state(state, settings=settings)
+    loaded = load_gamification_state(settings=settings)
 
     assert loaded.unlocked_presets == {"sleigh", "duck"}
     assert loaded.achievement_progress == {"clicker": 7}

@@ -76,7 +76,7 @@ class TTSManager(QObject):
             old_key = minimax._api_key[:8] + "..." if minimax._api_key else "(empty)"
             new_key = config.minimax_subscription_key[:8] + "..." if config.minimax_subscription_key else "(empty)"
             logger.info("TTSManager.update_config: updating MiniMax key %s -> %s", old_key, new_key)
-            minimax._api_key = config.minimax_subscription_key
+            minimax.set_api_key(config.minimax_subscription_key)
 
         if old_provider != self._current_provider_name:
             self.provider_changed.emit(self._current_provider_name)
@@ -91,9 +91,7 @@ class TTSManager(QObject):
         if provider is None:
             return
         if isinstance(provider, MiniMaxReader):
-            provider._voice_id = voice_id
-            provider._speed = float(speed)
-            provider._pitch = int(pitch)
+            provider.set_voice_profile(voice_id, speed, pitch)
 
     def _on_minimax_error(self, error_msg: str, original_text: str) -> None:
         """Handle MiniMax error by falling back to SAPI.

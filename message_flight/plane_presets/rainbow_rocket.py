@@ -42,6 +42,7 @@ class RainbowRocketPreset(PlanePreset):
         rocket.lineTo(int(80 * s), int(45 * s))
         rocket.lineTo(int(10 * s), int(45 * s))
         rocket.closeSubpath()
+        painter.drawPath(rocket)
         for i, hex_color in enumerate(_RAINBOW):
             y0 = int(15 * s) + i * int(4 * s)
             painter.setBrush(QColor(hex_color))

@@ -2,6 +2,7 @@
 import logging
 import random
 import sys
+from typing import Dict
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPainterPath, QPixmap, QPixmapCache
@@ -13,6 +14,8 @@ from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
 from message_flight.i18n import tr
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
+from message_flight.persona_rewriter import PersonaRewriter
+from message_flight.plane_presets import get_preset
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
 from message_flight.tts_manager import TTSManager
@@ -36,6 +39,14 @@ class TrayApplication:
         self.widget: FlightWidget = FlightWidget(plane_colors=self.cfg.colors, **self.cfg.flight_kwargs)
 
         self.tts = TTSManager(self.cfg)
+
+        self.persona = PersonaRewriter(
+            api_key=self.cfg.minimax_subscription_key,
+            preset_key=self.cfg.plane_preset_key,
+            system_prompt=self._persona_prompt_for(self.cfg.plane_preset_key),
+            enabled=self.cfg.persona_enabled,
+        )
+        self.persona.rewrite_finished.connect(self._on_persona_rewritten)
 
         # 系统托盘
         self.tray_icon = QSystemTrayIcon(self._create_tray_icon(), self.app)
@@ -185,19 +196,41 @@ class TrayApplication:
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self._show_widget()
 
-    def _on_real_notification(self, app_name: str, text: str):
-        """收到真实系统通知（受 DND 控制；演示通知不受影响）"""
+    def _on_real_notification(self, app_name: str, text: str) -> None:
         if is_dnd_active(self.cfg):
             logger.info("[DND] Suppressed real notification from %s", app_name)
             return
         display = f"[{app_name}] {text}"
-        # 截断过长的文本
         if len(display) > 80:
             display = display[:77] + "..."
         logger.info("[Real Notification] %s", display)
-        self.tts.speak(display)
-        self.widget.enqueue_notification(display)
+        result = self.persona.rewrite(display)
+        if result is not None:
+            self._on_persona_rewritten(display, result)
+
+    def _on_persona_rewritten(self, original: str, rewritten: str) -> None:
+        spoken = rewritten or original
+        self.tts.speak(spoken)
+        self.widget.enqueue_notification(spoken)
         self._show_widget()
+
+    def _persona_prompt_for(self, preset_key: str) -> str:
+        prompts = self._load_persona_prompts()
+        if preset_key in prompts:
+            return prompts[preset_key]
+        return get_preset(preset_key).system_prompt
+
+    def _load_persona_prompts(self) -> Dict[str, str]:
+        import json
+        if not self.cfg.persona_prompts_json:
+            return {}
+        try:
+            data = json.loads(self.cfg.persona_prompts_json)
+        except json.JSONDecodeError:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {str(k): str(v) for k, v in data.items()}
 
     def _on_access_status(self, status: int):
         """通知权限状态更新"""

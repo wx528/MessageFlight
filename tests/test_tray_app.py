@@ -40,6 +40,8 @@ def test_on_real_notification_calls_tts_speak():
         mock_tts_cls.return_value = mock_tts
         app = TrayApplication()
         app.cfg = AppConfig(dnd_enabled=False)
+        app.persona = MagicMock()
+        app.persona.rewrite.return_value = "[WeChat] hello"
         app._on_real_notification("WeChat", "hello")
         mock_tts.speak.assert_called_once_with("[WeChat] hello")
 
@@ -175,3 +177,88 @@ def test_apply_preset_to_widget():
         args = app.widget.plane.apply_preset.call_args
         assert args[0][1].plane_color == "#FF0000"
         assert args[0][1].wing_color == "#00FF00"
+
+
+def test_real_notification_uses_persona_rewriter_async_path():
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        app.cfg = AppConfig(dnd_enabled=False, plane_preset_key="airplane", persona_enabled=True)
+        app.persona = MagicMock()
+        app.persona.rewrite.return_value = None
+
+        app._on_real_notification("WeChat", "hello")
+
+        # persona.rewrite was called with the formatted display
+        app.persona.rewrite.assert_called_once_with("[WeChat] hello")
+        # TTS and widget NOT yet called (waiting on async signal)
+        app.tts.speak.assert_not_called()
+        app.widget.enqueue_notification.assert_not_called()
+
+
+def test_real_notification_synchronous_fallback_when_rewrite_returns_string():
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        app.cfg = AppConfig(dnd_enabled=False, plane_preset_key="airplane", persona_enabled=True)
+        app.persona = MagicMock()
+        app.persona.rewrite.return_value = "[WeChat] hello (rewritten)"
+
+        app._on_real_notification("WeChat", "hello")
+
+        app.persona.rewrite.assert_called_once_with("[WeChat] hello")
+        app.tts.speak.assert_called_once_with("[WeChat] hello (rewritten)")
+        app.widget.enqueue_notification.assert_called_once_with("[WeChat] hello (rewritten)")
+
+
+def test_on_persona_rewritten_falls_back_to_original_on_empty():
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        app.cfg = AppConfig(dnd_enabled=False, plane_preset_key="airplane")
+        app._on_persona_rewritten("[WeChat] hi", "")
+        app.tts.speak.assert_called_once_with("[WeChat] hi")
+        app.widget.enqueue_notification.assert_called_once_with("[WeChat] hi")
+
+
+def test_tray_app_initializes_persona_rewriter():
+    from message_flight.persona_rewriter import PersonaRewriter
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        assert isinstance(app.persona, PersonaRewriter)

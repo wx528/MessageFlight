@@ -97,7 +97,27 @@ class OpenWakeWordListener(QObject):
         self._debounce_seconds = debounce_seconds
 
         try:
+            import os as _os
+
+            import openwakeword  # type: ignore[import-untyped]
             from openwakeword.model import Model  # type: ignore[import-untyped]
+            from openwakeword.utils import download_models  # type: ignore[import-untyped]
+
+            # Auto-download pretrained models on first use (tflite+onnx variants).
+            # openwakeword ships model paths in openwakeword.MODELS but does
+            # not download them eagerly; we trigger the helper so the user
+            # does not see a confusing "model file not found" error on first
+            # run. On Windows tflite-runtime is unavailable, so we use the
+            # onnx framework (set in Model(...) call below) which only needs
+            # onnxruntime (already installed).
+            _any_missing = any(
+                not _os.path.exists(p["model_path"])
+                and not _os.path.exists(p["model_path"].replace(".tflite", ".onnx"))
+                for p in openwakeword.MODELS.values()
+            )
+            if _any_missing:
+                logger.info("OpenWakeWordListener: downloading pretrained models on first use...")
+                download_models()
 
             self._model = Model(
                 wakeword_models=[model_name],

@@ -5,6 +5,36 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolated_tray_state(monkeypatch):
+    """Force TrayApplication() to use fresh in-memory state.
+
+    Without this, TrayApplication.__init__ reads the user's real
+    ~/.config/messageflight/MessageFlight.ini and bleeds persisted
+    state (e.g. stt_enabled=True from a manual voice-input test) into
+    other tests, which can trigger real model loads and crash.
+
+    Returns the SAME AppConfig and GamificationState instance for every
+    call within one test, so the AchievementEngine's reference and
+    app.state are the same object (the engine captures the reference
+    at construction time).
+    """
+    from message_flight.config import AppConfig, GamificationState
+
+    cfg = AppConfig()
+    state = GamificationState()
+    monkeypatch.setattr(
+        "message_flight.tray_app.load_config",
+        lambda: cfg,
+    )
+    monkeypatch.setattr(
+        "message_flight.tray_app.load_gamification_state",
+        lambda: state,
+    )
+
 
 def test_tray_app_starts_hidden_in_tray():
     """Starting the tray app must not show the flight widget until a notification or user action."""
@@ -472,6 +502,14 @@ def test_achievement_unlocked_adds_preset_and_shows_toast():
     from message_flight.config import AppConfig, GamificationState
     from message_flight.tray_app import TrayApplication
 
+    # Pin datetime to noon so time-based achievements (night_owl at 0-4,
+    # early_bird at 5-7) don't fire during __init__'s check_time_based().
+    class _Noon:
+        @classmethod
+        def now(cls, tz=None):
+            from datetime import datetime
+            return datetime(2026, 1, 1, 12, 0)
+
     with patch("message_flight.tray_app.QApplication"), \
          patch("message_flight.tray_app.QSystemTrayIcon"), \
          patch("message_flight.tray_app.FlightWidget"), \
@@ -481,7 +519,8 @@ def test_achievement_unlocked_adds_preset_and_shows_toast():
          patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
          patch("message_flight.tray_app.TTSManager"), \
          patch("message_flight.tray_app.ToastManager") as mock_toast_cls, \
-         patch("message_flight.tray_app.save_gamification_state"):
+         patch("message_flight.tray_app.save_gamification_state"), \
+         patch("message_flight.achievement_engine.datetime", _Noon):
         mock_toast = MagicMock()
         mock_toast_cls.return_value = mock_toast
         app = TrayApplication()

@@ -5,6 +5,7 @@ from typing import Type
 from .airplane import AirplanePreset
 from .base import PlanePreset
 from .bird import BirdPreset
+from .duck import DuckPreset
 from .rocket import RocketPreset
 from .sleigh import SleighPreset
 from .ufo import UFOPreset
@@ -30,5 +31,6 @@ def list_presets() -> list[tuple[str, str, str]]:
 
 
 UNLOCKABLE_PRESETS: dict[str, type[PlanePreset]] = {
+    "duck": DuckPreset,
     "sleigh": SleighPreset,
 }

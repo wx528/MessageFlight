@@ -122,9 +122,10 @@ def test_engine_milestone_does_not_refire_on_new_engine(qapp, fixed_noon):
 
 
 def test_engine_night_owl_fires_when_hour_in_window(qapp, monkeypatch):
+    from datetime import datetime
+
     from message_flight.achievement_engine import AchievementEngine
     from message_flight.config import AppConfig
-    from datetime import datetime
 
     cfg = AppConfig()
     engine = AchievementEngine(cfg)
@@ -144,9 +145,10 @@ def test_engine_night_owl_fires_when_hour_in_window(qapp, monkeypatch):
 
 
 def test_engine_early_bird_fires_when_hour_in_window(qapp, monkeypatch):
+    from datetime import datetime
+
     from message_flight.achievement_engine import AchievementEngine
     from message_flight.config import AppConfig
-    from datetime import datetime
 
     cfg = AppConfig()
     engine = AchievementEngine(cfg)

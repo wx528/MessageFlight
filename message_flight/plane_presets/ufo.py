@@ -32,6 +32,9 @@ class UFOPreset(PlanePreset):
         "你是这艘 UFO 的外星领航员。请用神秘、好奇的语气播报收到的系统通知。"
         "始终称呼用户为'探索者'。限制在 30 个汉字以内，可使用 1 个 emoji。"
     )
+    tts_voice_id = "female-shaonv"
+    tts_speed = 1.0
+    tts_pitch = 0
 
     def draw(self, painter: QPainter, params: UFOParameters) -> None:
         dr = params.disc_radius

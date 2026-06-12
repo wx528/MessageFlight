@@ -327,9 +327,6 @@ def test_save_load_persona_prompts_round_trip(isolated_settings):
 
 def test_app_config_new_fields_round_trip(tmp_path, monkeypatch):
     """The 6 new gamification fields must round-trip through QSettings."""
-    from PyQt6.QtCore import QSettings
-    from message_flight.config import AppConfig, load_config, save_config
-
     monkeypatch.setenv("MESSAGEFLIGHT_CONFIG_DIR", str(tmp_path))
     settings = QSettings(str(tmp_path / "test.ini"), QSettings.Format.IniFormat)
 

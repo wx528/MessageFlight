@@ -119,3 +119,47 @@ def test_engine_milestone_does_not_refire_on_new_engine(qapp, fixed_noon):
 
     # Should not fire again
     fired2.assert_not_called()
+
+
+def test_engine_night_owl_fires_when_hour_in_window(qapp, monkeypatch):
+    from message_flight.achievement_engine import AchievementEngine
+    from message_flight.config import AppConfig
+    from datetime import datetime
+
+    cfg = AppConfig()
+    engine = AchievementEngine(cfg)
+    fired = MagicMock()
+    engine.unlocked.connect(fired)
+
+    class _FixedDT:
+        @classmethod
+        def now(cls):
+            return datetime(2026, 1, 1, 2, 30)
+    monkeypatch.setattr("message_flight.achievement_engine.datetime", _FixedDT)
+
+    engine.record_notification(source="WeChat")
+    ids = [c.args[0] for c in fired.call_args_list]
+    assert "night_owl" in ids
+    assert "gold_ufo" in cfg.unlocked_presets
+
+
+def test_engine_early_bird_fires_when_hour_in_window(qapp, monkeypatch):
+    from message_flight.achievement_engine import AchievementEngine
+    from message_flight.config import AppConfig
+    from datetime import datetime
+
+    cfg = AppConfig()
+    engine = AchievementEngine(cfg)
+    fired = MagicMock()
+    engine.unlocked.connect(fired)
+
+    class _FixedDT:
+        @classmethod
+        def now(cls):
+            return datetime(2026, 1, 1, 6, 15)
+    monkeypatch.setattr("message_flight.achievement_engine.datetime", _FixedDT)
+
+    engine.record_notification(source="WeChat")
+    ids = [c.args[0] for c in fired.call_args_list]
+    assert "early_bird" in ids
+    assert "pixel_bird" in cfg.unlocked_presets

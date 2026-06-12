@@ -463,6 +463,12 @@ class TrayApplication:
             persona_enabled, persona_prompts_json = dlg.get_persona_result()
             new_cfg.persona_enabled = persona_enabled
             new_cfg.persona_prompts_json = persona_prompts_json
+
+            # Detect voice-input toggling BEFORE swapping cfg so we can
+            # wire/unwire the STTManager accordingly.
+            voice_was_enabled = self.cfg.stt_enabled
+            voice_now_enabled = new_cfg.stt_enabled
+
             save_config(new_cfg)
             self.cfg = new_cfg
             self.language = new_cfg.language
@@ -476,6 +482,18 @@ class TrayApplication:
                 system_prompt=self._persona_prompt_for(new_cfg.plane_preset_key),
                 enabled=new_cfg.persona_enabled,
             )
+
+            # Voice input: construct on enable, tear down on disable.
+            # Without this, enabling voice in settings required an app
+            # restart before the STTManager actually came online.
+            if not voice_was_enabled and voice_now_enabled:
+                logger.info("TrayApplication: voice input enabled, constructing STTManager")
+                self._init_stt_manager()
+            elif voice_was_enabled and not voice_now_enabled:
+                logger.info("TrayApplication: voice input disabled, tearing down STTManager")
+                if self._stt_manager is not None:
+                    self._stt_manager.stop()
+                    self._stt_manager = None
 
     def _open_preset_editor(self):
         dlg = PresetEditorWindow(self.cfg, self.menu)

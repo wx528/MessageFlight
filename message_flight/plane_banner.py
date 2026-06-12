@@ -1,14 +1,26 @@
 """Custom QWidget that draws a plane with a notification banner."""
 from typing import Optional
 
-from PyQt6.QtCore import QRect, Qt, QTimer, pyqtProperty  # type: ignore[attr-defined]
+from PyQt6.QtCore import (  # type: ignore[attr-defined]
+    QDateTime,
+    QRect,
+    Qt,
+    QTimer,
+    pyqtProperty,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import QWidget
 
 from message_flight.plane_presets import get_preset
 
+_DRAG_THRESHOLD_PX = 5
+_CLICK_MAX_DURATION_MS = 250
+
 
 class PlaneBanner(QWidget):
+    clicked = pyqtSignal()
+
     def __init__(
         self,
         parent=None,
@@ -49,6 +61,8 @@ class PlaneBanner(QWidget):
         self._dragging = False
         self._drag_start_pos = None
         self._drag_start_global = None
+        self._press_pos = None
+        self._press_time_ms = 0
 
     def _ensure_feedback_timer(self):
         if self._click_feedback_timer is None:
@@ -65,6 +79,8 @@ class PlaneBanner(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
+            self._press_pos = event.pos()
+            self._press_time_ms = QDateTime.currentMSecsSinceEpoch()
             self._dragging = True
             self._drag_start_pos = event.pos()
             self._drag_start_global = event.globalPosition().toPoint()
@@ -93,6 +109,12 @@ class PlaneBanner(QWidget):
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
+            if self._press_pos is not None:
+                moved = (event.pos() - self._press_pos).manhattanLength()
+                held_ms = QDateTime.currentMSecsSinceEpoch() - self._press_time_ms
+                if moved < _DRAG_THRESHOLD_PX and held_ms < _CLICK_MAX_DURATION_MS:
+                    self.clicked.emit()
+                self._press_pos = None
             self._dragging = False
             self._drag_start_pos = None
             self._drag_start_global = None

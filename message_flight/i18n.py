@@ -85,6 +85,7 @@ _TRANSLATIONS = {
         "collection.locked": "未解锁",
         "collection.unlocked": "已解锁",
         "collection.always": "已拥有",
+        "settings.tab.collection": "收集",
     },
     "en": {
         "tray.show": "Show plane",
@@ -154,6 +155,7 @@ _TRANSLATIONS = {
         "collection.locked": "Locked",
         "collection.unlocked": "Unlocked",
         "collection.always": "Always Available",
+        "settings.tab.collection": "Collection",
     },
     "ja": {
         "tray.show": "飛行機を表示",

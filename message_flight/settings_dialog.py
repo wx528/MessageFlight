@@ -16,10 +16,13 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from message_flight.achievements import ACHIEVEMENTS
+from message_flight.collection_tab import CollectionTab
 from message_flight.config import (
     DEFAULT_THEME,
     FLIGHT_MODE_NAMES,
@@ -56,6 +59,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, initial: AppConfig, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        self._config = initial
         self._language = initial.language
         self.setWindowTitle(tr("settings.title", self._language))
         self.setModal(True)
@@ -69,6 +73,24 @@ class SettingsDialog(QDialog):
         self._flight_mode_buttons: dict[str, QPushButton] = {}
 
         root = QVBoxLayout(self)
+
+        self.tabs = QTabWidget(self)
+        root.addWidget(self.tabs)
+
+        general_tab = QWidget()
+        general_layout = QVBoxLayout(general_tab)
+        self.tabs.addTab(general_tab, tr("settings.title", self._language))
+
+        self._collection_tab = CollectionTab(
+            self._config.unlocked_presets,
+            ACHIEVEMENTS,
+        )
+        self.tabs.addTab(
+            self._collection_tab,
+            tr("settings.tab.collection", self._language),
+        )
+
+        root = general_layout
 
         language_row = QHBoxLayout()
         language_row.addWidget(QLabel(tr("settings.language", self._language)))

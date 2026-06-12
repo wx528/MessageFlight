@@ -7,7 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import sys
 
 import pytest
-from PyQt6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QPushButton
+from PyQt6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QPushButton, QTabWidget
 
 from message_flight.config import (
     DEFAULT_THEME,
@@ -258,3 +258,26 @@ def test_settings_dialog_drops_edit_when_text_matches_default(qapp):
     enabled, prompts_json = dlg.get_persona_result()
     prompts = json.loads(prompts_json)
     assert "airplane" not in prompts
+
+
+def test_settings_dialog_has_collection_tab(qapp):
+    """SettingsDialog must include a 'Collection' tab containing a CollectionTab."""
+    from message_flight.collection_tab import CollectionTab
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig(language="en")
+    dlg = SettingsDialog(cfg)
+
+    tabs = dlg.findChild(QTabWidget)
+    assert tabs is not None, "SettingsDialog should use a QTabWidget"
+
+    tab_labels = [tabs.tabText(i) for i in range(tabs.count())]
+    assert any("Collection" in label for label in tab_labels), (
+        f"No Collection tab found among {tab_labels}"
+    )
+
+    found_collection_widget = any(
+        isinstance(tabs.widget(i), CollectionTab) for i in range(tabs.count())
+    )
+    assert found_collection_widget, "Collection tab should contain a CollectionTab instance"

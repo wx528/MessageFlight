@@ -137,3 +137,109 @@ def test_minimax_reader_emits_error_when_no_api_key(qapp) -> None:
         assert len(captured) == 1
         assert "api key" in captured[0][0].lower()
         mock_nam.post.assert_not_called()
+
+
+def test_minimax_reader_emits_error_on_http_non_200(qapp) -> None:
+    """HTTP 4xx/5xx should emit error."""
+    from message_flight.stt import MiniMaxSTTReader
+
+    with patch("PyQt6.QtNetwork.QNetworkAccessManager") as mock_nam_cls:
+        mock_nam = mock_nam_cls.return_value
+        mock_reply = MagicMock()
+        mock_reply.error.return_value = QNetworkReply.NetworkError.NoError
+        mock_reply.attribute.return_value = 401
+        mock_reply.errorString.return_value = "unauthorized"
+        mock_nam.post.return_value = mock_reply
+
+        reader = MiniMaxSTTReader(api_key="bad-key")
+        captured = []
+        reader.error_occurred.connect(lambda msg, audio: captured.append((msg, audio)))
+
+        audio = b"\x00\x00" * 100
+        reader.transcribe(audio)
+
+        finished = mock_nam.finished.connect.call_args.args[0]
+        finished(mock_reply)
+
+        assert len(captured) == 1
+        assert "401" in captured[0][0]
+
+
+def test_minimax_reader_emits_error_on_base_resp_error(qapp) -> None:
+    """MiniMax returns HTTP 200 with in-body error."""
+    from message_flight.stt import MiniMaxSTTReader
+
+    with patch("PyQt6.QtNetwork.QNetworkAccessManager") as mock_nam_cls:
+        mock_nam = mock_nam_cls.return_value
+        mock_reply = MagicMock()
+        mock_reply.error.return_value = QNetworkReply.NetworkError.NoError
+        mock_reply.attribute.return_value = 200
+        mock_reply.readAll.return_value.data.return_value = (
+            b'{"base_resp": {"status_code": 1004, "status_msg": "invalid api key"}}'
+        )
+        mock_nam.post.return_value = mock_reply
+
+        reader = MiniMaxSTTReader(api_key="test-key")
+        captured = []
+        reader.error_occurred.connect(lambda msg, audio: captured.append((msg, audio)))
+
+        audio = b"\x00\x00" * 100
+        reader.transcribe(audio)
+
+        finished = mock_nam.finished.connect.call_args.args[0]
+        finished(mock_reply)
+
+        assert len(captured) == 1
+        assert "1004" in captured[0][0] or "invalid api key" in captured[0][0].lower()
+
+
+def test_minimax_reader_emits_error_on_empty_text_field(qapp) -> None:
+    """HTTP 200 with `{"text": ""}` should emit error."""
+    from message_flight.stt import MiniMaxSTTReader
+
+    with patch("PyQt6.QtNetwork.QNetworkAccessManager") as mock_nam_cls:
+        mock_nam = mock_nam_cls.return_value
+        mock_reply = MagicMock()
+        mock_reply.error.return_value = QNetworkReply.NetworkError.NoError
+        mock_reply.attribute.return_value = 200
+        mock_reply.readAll.return_value.data.return_value = b'{"text": ""}'
+        mock_nam.post.return_value = mock_reply
+
+        reader = MiniMaxSTTReader(api_key="test-key")
+        captured = []
+        reader.error_occurred.connect(lambda msg, audio: captured.append((msg, audio)))
+
+        audio = b"\x00\x00" * 100
+        reader.transcribe(audio)
+
+        finished = mock_nam.finished.connect.call_args.args[0]
+        finished(mock_reply)
+
+        assert len(captured) == 1
+        assert "empty" in captured[0][0].lower()
+
+
+def test_minimax_reader_emits_error_on_null_text_field(qapp) -> None:
+    """HTTP 200 with `{"text": null}` should emit error (not AttributeError)."""
+    from message_flight.stt import MiniMaxSTTReader
+
+    with patch("PyQt6.QtNetwork.QNetworkAccessManager") as mock_nam_cls:
+        mock_nam = mock_nam_cls.return_value
+        mock_reply = MagicMock()
+        mock_reply.error.return_value = QNetworkReply.NetworkError.NoError
+        mock_reply.attribute.return_value = 200
+        mock_reply.readAll.return_value.data.return_value = b'{"text": null}'
+        mock_nam.post.return_value = mock_reply
+
+        reader = MiniMaxSTTReader(api_key="test-key")
+        captured = []
+        reader.error_occurred.connect(lambda msg, audio: captured.append((msg, audio)))
+
+        audio = b"\x00\x00" * 100
+        reader.transcribe(audio)
+
+        finished = mock_nam.finished.connect.call_args.args[0]
+        finished(mock_reply)
+
+        assert len(captured) == 1
+        assert "empty" in captured[0][0].lower()

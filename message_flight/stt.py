@@ -139,7 +139,21 @@ class MiniMaxSTTReader(STTReader, QObject):
             reply.deleteLater()
             return
 
-        text = response_json.get("text", "").strip()
+        # Check MiniMax API-level error (HTTP 200 with in-body status_code != 0)
+        base_resp = response_json.get("base_resp", {})
+        status_code_api = base_resp.get("status_code", 0)
+        if status_code_api != 0:
+            status_msg = base_resp.get("status_msg", "unknown error")
+            err_msg = f"MiniMax ASR API error {status_code_api}: {status_msg}"
+            logger.error("MiniMaxSTTReader._on_reply_finished: %s", err_msg)
+            self.error_occurred.emit(err_msg, original_audio)
+            reply.deleteLater()
+            return
+
+        text = response_json.get("text")
+        if text is None or not isinstance(text, str):
+            text = ""
+        text = text.strip()
         if not text:
             err_msg = "MiniMax ASR returned empty text"
             logger.error("MiniMaxSTTReader._on_reply_finished: %s", err_msg)

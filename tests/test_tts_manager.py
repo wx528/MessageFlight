@@ -30,3 +30,34 @@ def test_tts_manager_fallback_signal(qtbot):
     with qtbot.waitSignal(mgr.fallback_triggered, timeout=1000):
         # Empty key triggers error immediately
         mgr.speak("test")
+
+
+def test_set_voice_updates_minimax_reader():
+    from message_flight.config import AppConfig
+    from message_flight.tts import MiniMaxReader
+    from message_flight.tts_manager import TTSManager
+
+    cfg = AppConfig(tts_provider="minimax", minimax_subscription_key="abc")
+    mgr = TTSManager(cfg)
+
+    mgr._current_provider_name = "minimax"
+    minimax = mgr._providers["minimax"]
+    assert isinstance(minimax, MiniMaxReader)
+
+    mgr.set_voice(voice_id="female-shaonv", speed=1.2, pitch=3)
+
+    assert minimax._voice_id == "female-shaonv"
+    assert minimax._speed == 1.2
+    assert minimax._pitch == 3
+
+
+def test_set_voice_with_sapi_provider_is_a_noop():
+    from message_flight.config import AppConfig
+    from message_flight.tts_manager import TTSManager
+
+    cfg = AppConfig(tts_provider="sapi")
+    mgr = TTSManager(cfg)
+    mgr._current_provider_name = "sapi"
+
+    # Should not raise
+    mgr.set_voice(voice_id="ignored", speed=1.0, pitch=0)

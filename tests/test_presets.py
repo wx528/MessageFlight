@@ -224,5 +224,5 @@ def test_presets_have_distinct_voice_ids_or_distinct_speeds():
         get_preset(k).tts_voice_id: get_preset(k).tts_speed
         for k in ("airplane", "rocket", "ufo", "bird")
     }
-    assert len({(v, s) for v, s in profiles.items()}) >= 2, \
+    assert len(set(profiles.items())) >= 2, \
         f"all presets share the same voice; expected at least 2 distinct (voice, speed) pairs: {profiles}"

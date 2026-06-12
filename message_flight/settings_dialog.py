@@ -221,6 +221,28 @@ class SettingsDialog(QDialog):
         self._button_box.rejected.connect(self.reject)
         root.addWidget(self._button_box)
 
+        # Voice commands tab (v0.4.0+)
+        self._voice_enabled_checkbox = QCheckBox(tr("voice.enable", self._language))
+        self._voice_enabled_checkbox.setChecked(initial.stt_enabled)
+        self._voice_wake_word_combo = QComboBox()
+        for wake_word_key in ("hey_jarvis", "alexa", "hey_mycroft"):
+            self._voice_wake_word_combo.addItem(
+                tr(f"voice.wake_word.{wake_word_key}", self._language),
+                wake_word_key,
+            )
+        current_index = self._voice_wake_word_combo.findData(initial.stt_wake_word)
+        self._voice_wake_word_combo.setCurrentIndex(max(0, current_index))
+
+        voice_tab = QWidget()
+        voice_layout = QVBoxLayout(voice_tab)
+        form = QFormLayout()
+        form.addRow(self._voice_enabled_checkbox)
+        form.addRow(tr("voice.wake_word", self._language), self._voice_wake_word_combo)
+        voice_layout.addLayout(form)
+        voice_layout.addWidget(QLabel(tr("voice.disabled_hint", self._language)))
+        voice_layout.addStretch(1)
+        self.tabs.addTab(voice_tab, tr("voice.tab.title", self._language))
+
         # Initial render
         self._refresh_all_swatches()
         self._refresh_ok_enabled()
@@ -250,6 +272,8 @@ class SettingsDialog(QDialog):
             tts_provider=self._provider_combo.currentText(),
             minimax_subscription_key=self._api_key_edit.text(),
             language=self._language_combo.currentData(),
+            stt_enabled=self._voice_enabled_checkbox.isChecked(),
+            stt_wake_word=self._voice_wake_word_combo.currentData() or "hey_jarvis",
         )
 
     # ------------------------------------------------------------------

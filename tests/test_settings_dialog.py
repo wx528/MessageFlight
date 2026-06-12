@@ -281,3 +281,42 @@ def test_settings_dialog_has_collection_tab(qapp):
         isinstance(tabs.widget(i), CollectionTab) for i in range(tabs.count())
     )
     assert found_collection_widget, "Collection tab should contain a CollectionTab instance"
+
+
+def test_settings_dialog_has_voice_tab(qapp):
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig(language="en")
+    dlg = SettingsDialog(cfg)
+
+    tab_labels = [dlg.tabs.tabText(i) for i in range(dlg.tabs.count())]
+    assert "Voice Commands" in tab_labels, f"No Voice tab found among {tab_labels}"
+
+
+def test_settings_dialog_voice_checkbox_reflects_config(qapp):
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig(stt_enabled=True, stt_wake_word="alexa")
+    dlg = SettingsDialog(cfg)
+
+    assert dlg._voice_enabled_checkbox.isChecked() is True
+    assert dlg._voice_wake_word_combo.currentData() == "alexa"
+
+
+def test_settings_dialog_get_result_includes_voice_fields(qapp):
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig()
+    dlg = SettingsDialog(cfg)
+    dlg._voice_enabled_checkbox.setChecked(True)
+    dlg._voice_wake_word_combo.setCurrentIndex(
+        dlg._voice_wake_word_combo.findData("alexa")
+    )
+    dlg.accept()
+
+    result = dlg.get_result()
+    assert result.stt_enabled is True
+    assert result.stt_wake_word == "alexa"

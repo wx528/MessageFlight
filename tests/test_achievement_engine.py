@@ -93,3 +93,29 @@ def test_engine_social_butterfly_fires_at_5_distinct(qapp, fixed_noon):
 
     ids = [c.args[0] for c in fired.call_args_list]
     assert "social_butterfly" in ids
+
+
+def test_engine_milestone_does_not_refire_on_new_engine(qapp, fixed_noon):
+    """A milestone fired in one engine instance must not refire after restart."""
+    from message_flight.achievement_engine import AchievementEngine
+    from message_flight.config import AppConfig
+
+    cfg = AppConfig()
+    engine1 = AchievementEngine(cfg)
+    fired1 = MagicMock()
+    engine1.milestone.connect(fired1)
+
+    for _ in range(10):
+        engine1.record_plane_click()
+
+    fired1.assert_called_once_with("clicker")
+    assert "clicker" in cfg.achievement_progress.get("_fired_milestones", set())
+
+    # Simulate process restart: create a new engine with the same cfg
+    engine2 = AchievementEngine(cfg)
+    fired2 = MagicMock()
+    engine2.milestone.connect(fired2)
+    engine2.record_plane_click()
+
+    # Should not fire again
+    fired2.assert_not_called()

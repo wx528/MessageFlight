@@ -34,8 +34,11 @@ class AchievementEngine(QObject):
         # Achievements already fired this session; also skip ones already
         # unlocked in cfg (idempotent across restarts)
         self._fired: set[str] = set()
+        fired_milestones = set(self._cfg.achievement_progress.get("_fired_milestones", []))
         for a in ACHIEVEMENTS:
-            if a.unlock_preset_key and a.unlock_preset_key in cfg.unlocked_presets:
+            if a.id in fired_milestones or (
+                a.unlock_preset_key and a.unlock_preset_key in cfg.unlocked_presets
+            ):
                 self._fired.add(a.id)
 
     def record_notification(self, source: str) -> None:
@@ -80,6 +83,9 @@ class AchievementEngine(QObject):
                 self.unlocked.emit(a.id)
                 logger.info("Achievement unlocked: %s -> %s", a.id, a.unlock_preset_key)
             else:
+                fired_milestones = set(self._cfg.achievement_progress.get("_fired_milestones", []))
+                fired_milestones.add(a.id)
+                self._cfg.achievement_progress["_fired_milestones"] = fired_milestones
                 self.milestone.emit(a.id)
                 logger.info("Milestone hit: %s", a.id)
 

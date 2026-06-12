@@ -6,6 +6,7 @@ from .airplane import AirplanePreset
 from .base import PlanePreset
 from .bird import BirdPreset
 from .rocket import RocketPreset
+from .sleigh import SleighPreset
 from .ufo import UFOPreset
 
 PRESETS: dict[str, Type[PlanePreset]] = {
@@ -17,13 +18,17 @@ PRESETS: dict[str, Type[PlanePreset]] = {
 
 
 def get_preset(key: str) -> PlanePreset:
-    if key not in PRESETS:
-        key = "airplane"
-    return PRESETS[key]()
+    if key in PRESETS:
+        return PRESETS[key]()
+    if key in UNLOCKABLE_PRESETS:
+        return UNLOCKABLE_PRESETS[key]()
+    raise KeyError(key)
 
 
 def list_presets() -> list[tuple[str, str, str]]:
     return [(k, p.name, p.icon) for k, p in PRESETS.items()]
 
 
-UNLOCKABLE_PRESETS: dict[str, type] = {}  # populated in Tasks 7-11
+UNLOCKABLE_PRESETS: dict[str, type[PlanePreset]] = {
+    "sleigh": SleighPreset,
+}

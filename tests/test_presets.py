@@ -80,9 +80,9 @@ def test_get_preset_returns_airplane():
     assert isinstance(p, AirplanePreset)
 
 
-def test_get_preset_unknown_returns_airplane_fallback():
-    p = get_preset("nonexistent")
-    assert isinstance(p, AirplanePreset)
+def test_get_preset_unknown_raises_keyerror():
+    with pytest.raises(KeyError):
+        get_preset("nonexistent")
 
 
 def test_list_presets_includes_airplane():

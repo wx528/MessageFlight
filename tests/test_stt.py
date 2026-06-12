@@ -20,7 +20,7 @@ def test_stt_reader_abstract() -> None:
     from message_flight.stt import STTReader
 
     with pytest.raises(TypeError):
-        STTReader()
+        STTReader()  # type: ignore[abstract]
 
 
 def test_minimax_reader_emits_transcribed_on_2xx(qapp) -> None:

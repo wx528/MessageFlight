@@ -35,3 +35,28 @@ def test_used_all_presets_trigger():
     assert t.evaluate({"presets_used": {"airplane"}}) is False
     assert t.evaluate({"presets_used": {"airplane", "rocket", "ufo", "bird"}}) is True
     assert t.evaluate({"presets_used": {"airplane", "rocket", "ufo", "bird", "sleigh"}}) is True
+
+
+def test_achievement_dataclass_fields():
+    """Achievement is a frozen dataclass with the spec'd fields."""
+    from message_flight.achievements import Achievement, CounterTrigger
+    a = Achievement(
+        id="first_flight",
+        name_i18n_key="achievement.first_flight.name",
+        description_i18n_key="achievement.first_flight.desc",
+        trigger=CounterTrigger(target=1),
+        unlock_preset_key="sleigh",
+        icon="🎅",
+    )
+    assert a.id == "first_flight"
+    assert a.unlock_preset_key == "sleigh"
+    # Milestone achievements have unlock_preset_key = None
+    b = Achievement(
+        id="clicker",
+        name_i18n_key="achievement.clicker.name",
+        description_i18n_key="achievement.clicker.desc",
+        trigger=CounterTrigger(target=10),
+        unlock_preset_key=None,
+        icon="🏆",
+    )
+    assert b.unlock_preset_key is None

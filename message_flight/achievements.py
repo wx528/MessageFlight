@@ -8,7 +8,7 @@ side effects.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Optional, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -68,3 +68,18 @@ class UsedAllPresetsTrigger:
 # ---------------------------------------------------------------------------
 # Achievement dataclass and registry live in Tasks 3 & 4
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Achievement:
+    """A single achievement entry.
+
+    `id` must be unique across the registry. `unlock_preset_key` is
+    None for milestone badges that don't unlock a new preset.
+    """
+    id: str
+    name_i18n_key: str
+    description_i18n_key: str
+    trigger: TriggerSpec
+    unlock_preset_key: Optional[str]
+    icon: str

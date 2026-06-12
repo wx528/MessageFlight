@@ -1,6 +1,5 @@
 """Background thread for listening to the Windows notification center."""
 import asyncio
-from typing import Set
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -20,7 +19,7 @@ class NotificationWorker(QThread):
     def __init__(self) -> None:
         super().__init__()
         self._running = True
-        self._seen_ids: Set[int] = set()
+        self._seen_ids: set[int] = set()
         self._initialized = False
 
     def run(self):

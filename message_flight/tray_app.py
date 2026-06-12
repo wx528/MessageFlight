@@ -2,7 +2,6 @@
 import logging
 import random
 import sys
-from typing import Dict
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPainterPath, QPixmap, QPixmapCache
@@ -290,7 +289,7 @@ class TrayApplication:
             return prompts[preset_key]
         return get_preset(preset_key).system_prompt
 
-    def _load_persona_prompts(self) -> Dict[str, str]:
+    def _load_persona_prompts(self) -> dict[str, str]:
         import json
         if not self.cfg.persona_prompts_json:
             return {}

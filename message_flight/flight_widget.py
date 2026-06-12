@@ -1,6 +1,6 @@
 """Main flight widget that animates the plane across the screen."""
 import random
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from PyQt6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QWidget
@@ -35,7 +35,7 @@ class FlightWidget(QWidget):
         re_flight_jitter_min_ratio: float = -1.0,
         notification_interval_ms: int = 5000,
         notification_queue_max_size: int = 20,
-        plane_colors: Optional[Dict[str, Any]] = None,
+        plane_colors: Optional[dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.setWindowFlags(

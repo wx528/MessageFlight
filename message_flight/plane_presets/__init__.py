@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Type
-
 from .airplane import AirplanePreset
 from .base import PlanePreset
 from .bird import BirdPreset
@@ -13,7 +11,7 @@ from .rocket import RocketPreset
 from .sleigh import SleighPreset
 from .ufo import UFOPreset
 
-PRESETS: dict[str, Type[PlanePreset]] = {
+PRESETS: dict[str, type[PlanePreset]] = {
     "airplane": AirplanePreset,
     "rocket": RocketPreset,
     "ufo": UFOPreset,

@@ -13,7 +13,7 @@ README_FILES = (
 )
 
 BADGE_MARKERS = (
-    "img.shields.io/badge/Python-3.8%2B",
+    "img.shields.io/badge/Python-3.11%2B",
     "img.shields.io/badge/GUI-PyQt6",
     "img.shields.io/badge/Platform-Windows%2010%2F11",
     "img.shields.io/pypi/v/messageflight",

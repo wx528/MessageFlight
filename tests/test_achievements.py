@@ -1,8 +1,6 @@
 """Tests for the Achievement registry and TriggerSpec types."""
 import os
 
-import pytest
-
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
@@ -93,10 +91,6 @@ def test_registry_all_i18n_keys_resolve():
         assert tr(a.description_i18n_key, "zh"), f"missing zh: {a.description_i18n_key}"
 
 
-@pytest.mark.xfail(
-    reason="UNLOCKABLE_PRESETS populated in Tasks 7-11; remove marker after Task 11",
-    strict=True,
-)
 def test_registry_unlock_presets_are_known():
     """unlock_preset_key must refer to a preset that exists in UNLOCKABLE_PRESETS."""
     from message_flight.achievements import ACHIEVEMENTS

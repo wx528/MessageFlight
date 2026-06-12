@@ -22,7 +22,7 @@ def qapp():
     "duck",
     "rainbow_rocket",
     "gold_ufo",
-    pytest.param("pixel_bird", marks=pytest.mark.xfail(reason="implemented in Task 11")),
+    "pixel_bird",
 ])
 def test_unlockable_preset_is_registered(preset_key):
     from message_flight.plane_presets import UNLOCKABLE_PRESETS
@@ -35,7 +35,7 @@ def test_unlockable_preset_is_registered(preset_key):
     "duck",
     "rainbow_rocket",
     "gold_ufo",
-    pytest.param("pixel_bird", marks=pytest.mark.xfail(reason="implemented in Task 11")),
+    "pixel_bird",
 ])
 def test_unlockable_preset_can_be_instantiated(preset_key):
     from message_flight.plane_presets import UNLOCKABLE_PRESETS
@@ -50,7 +50,7 @@ def test_unlockable_preset_can_be_instantiated(preset_key):
     "duck",
     "rainbow_rocket",
     "gold_ufo",
-    pytest.param("pixel_bird", marks=pytest.mark.xfail(reason="implemented in Task 11")),
+    "pixel_bird",
 ])
 def test_unlockable_preset_draws_without_raising(qapp, preset_key):
     from message_flight.plane_presets import UNLOCKABLE_PRESETS

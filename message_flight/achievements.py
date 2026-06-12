@@ -66,7 +66,7 @@ class UsedAllPresetsTrigger:
 
 
 # ---------------------------------------------------------------------------
-# Achievement dataclass and registry live in Tasks 3 & 4
+# Achievement dataclass and registry
 # ---------------------------------------------------------------------------
 
 
@@ -83,3 +83,71 @@ class Achievement:
     trigger: TriggerSpec
     unlock_preset_key: Optional[str]
     icon: str
+
+
+ACHIEVEMENTS: list[Achievement] = [
+    Achievement(
+        id="first_flight",
+        name_i18n_key="achievement.first_flight.name",
+        description_i18n_key="achievement.first_flight.desc",
+        trigger=CounterTrigger(target=1),
+        unlock_preset_key="sleigh",
+        icon="🎅",
+    ),
+    Achievement(
+        id="centurion",
+        name_i18n_key="achievement.centurion.name",
+        description_i18n_key="achievement.centurion.desc",
+        trigger=CounterTrigger(target=100),
+        unlock_preset_key="duck",
+        icon="🦆",
+    ),
+    Achievement(
+        id="social_butterfly",
+        name_i18n_key="achievement.social_butterfly.name",
+        description_i18n_key="achievement.social_butterfly.desc",
+        trigger=DistinctSetTrigger(target=5),
+        unlock_preset_key="rainbow_rocket",
+        icon="🌈",
+    ),
+    Achievement(
+        id="night_owl",
+        name_i18n_key="achievement.night_owl.name",
+        description_i18n_key="achievement.night_owl.desc",
+        trigger=TimeOfDayTrigger(start_hour=0, end_hour=5),
+        unlock_preset_key="gold_ufo",
+        icon="✨",
+    ),
+    Achievement(
+        id="early_bird",
+        name_i18n_key="achievement.early_bird.name",
+        description_i18n_key="achievement.early_bird.desc",
+        trigger=TimeOfDayTrigger(start_hour=5, end_hour=8),
+        unlock_preset_key="pixel_bird",
+        icon="🐤",
+    ),
+    Achievement(
+        id="clicker",
+        name_i18n_key="achievement.clicker.name",
+        description_i18n_key="achievement.clicker.desc",
+        trigger=CounterTrigger(target=10),
+        unlock_preset_key=None,
+        icon="🏆",
+    ),
+    Achievement(
+        id="loud_mouth",
+        name_i18n_key="achievement.loud_mouth.name",
+        description_i18n_key="achievement.loud_mouth.desc",
+        trigger=CounterTrigger(target=50),
+        unlock_preset_key=None,
+        icon="🏆",
+    ),
+    Achievement(
+        id="try_them_all",
+        name_i18n_key="achievement.try_them_all.name",
+        description_i18n_key="achievement.try_them_all.desc",
+        trigger=UsedAllPresetsTrigger(required={"airplane", "rocket", "ufo", "bird"}),
+        unlock_preset_key=None,
+        icon="🏆",
+    ),
+]

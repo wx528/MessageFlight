@@ -24,3 +24,6 @@ def get_preset(key: str) -> PlanePreset:
 
 def list_presets() -> list[tuple[str, str, str]]:
     return [(k, p.name, p.icon) for k, p in PRESETS.items()]
+
+
+UNLOCKABLE_PRESETS: dict[str, type] = {}  # populated in Tasks 7-11

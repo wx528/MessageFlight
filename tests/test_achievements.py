@@ -1,6 +1,8 @@
 """Tests for the Achievement registry and TriggerSpec types."""
 import os
 
+import pytest
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
@@ -60,3 +62,47 @@ def test_achievement_dataclass_fields():
         icon="🏆",
     )
     assert b.unlock_preset_key is None
+
+
+def test_registry_has_exactly_eight_entries():
+    from message_flight.achievements import ACHIEVEMENTS
+    assert len(ACHIEVEMENTS) == 8
+
+
+def test_registry_no_duplicate_ids():
+    from message_flight.achievements import ACHIEVEMENTS
+    ids = [a.id for a in ACHIEVEMENTS]
+    assert len(ids) == len(set(ids))
+
+
+def test_registry_five_with_preset_three_milestones():
+    from message_flight.achievements import ACHIEVEMENTS
+    with_preset = [a for a in ACHIEVEMENTS if a.unlock_preset_key]
+    milestones = [a for a in ACHIEVEMENTS if a.unlock_preset_key is None]
+    assert len(with_preset) == 5
+    assert len(milestones) == 3
+
+
+def test_registry_all_i18n_keys_resolve():
+    from message_flight.achievements import ACHIEVEMENTS
+    from message_flight.i18n import tr
+    for a in ACHIEVEMENTS:
+        assert tr(a.name_i18n_key, "en"), f"missing en: {a.name_i18n_key}"
+        assert tr(a.name_i18n_key, "zh"), f"missing zh: {a.name_i18n_key}"
+        assert tr(a.description_i18n_key, "en"), f"missing en: {a.description_i18n_key}"
+        assert tr(a.description_i18n_key, "zh"), f"missing zh: {a.description_i18n_key}"
+
+
+@pytest.mark.xfail(
+    reason="UNLOCKABLE_PRESETS populated in Tasks 7-11; remove marker after Task 11",
+    strict=True,
+)
+def test_registry_unlock_presets_are_known():
+    """unlock_preset_key must refer to a preset that exists in UNLOCKABLE_PRESETS."""
+    from message_flight.achievements import ACHIEVEMENTS
+    from message_flight.plane_presets import UNLOCKABLE_PRESETS
+    valid = set(UNLOCKABLE_PRESETS.keys())
+    for a in ACHIEVEMENTS:
+        if a.unlock_preset_key is None:
+            continue
+        assert a.unlock_preset_key in valid, f"unknown preset: {a.unlock_preset_key}"

@@ -255,15 +255,17 @@ class TrayApplication:
         )
 
     def _send_demo_notification(self):
-        """Pick a random demo notification, speak it, and fire it on the widget.
+        """Pick a random demo notification, route it through PersonaRewriter,
+        then speak it and fire it on the widget.
 
         Demo notifications bypass DND so the user can always test the
         notification path even when real notifications are silenced.
         """
         text = random.choice(NOTIFICATIONS)
         logger.info("[Demo Notification] %s", text)
-        self.tts.speak(text)
-        self.widget.enqueue_notification(text)
+        result = self.persona.rewrite(text)
+        if result is not None:
+            self._on_persona_rewritten(result or text)
 
     def _open_settings(self):
         """Open the settings dialog (color scheme + flight mode). On accept, save config and apply changes."""

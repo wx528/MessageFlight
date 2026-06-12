@@ -85,6 +85,8 @@ def test_send_demo_notification_bypasses_dnd():
         mock_tts_cls.return_value = mock_tts
         app = TrayApplication()
         app.cfg = AppConfig(dnd_enabled=True)
+        app.persona = MagicMock()
+        app.persona.rewrite.return_value = "REWRITTEN"
         app._send_demo_notification()
         mock_tts.speak.assert_called_once()
         app.widget.enqueue_notification.assert_called_once()
@@ -266,3 +268,57 @@ def test_tray_app_initializes_persona_rewriter():
          patch("message_flight.tray_app.TTSManager"):
         app = TrayApplication()
         assert isinstance(app.persona, PersonaRewriter)
+
+
+def test_send_demo_notification_routes_through_persona_rewriter():
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        app.cfg = AppConfig(dnd_enabled=True, plane_preset_key="airplane", persona_enabled=True)
+        app.persona = MagicMock()
+        app.persona.rewrite.return_value = "机长：演示消息已重写"
+
+        app._send_demo_notification()
+
+        # persona.rewrite was called with a non-empty demo text
+        assert app.persona.rewrite.call_count == 1
+        called_text = app.persona.rewrite.call_args[0][0]
+        assert isinstance(called_text, str) and called_text
+
+        # Sync path: _on_persona_rewritten invoked with the rewritten text
+        app.tts.speak.assert_called_once_with("机长：演示消息已重写")
+        app.widget.enqueue_notification.assert_called_once_with("机长：演示消息已重写")
+
+
+def test_send_demo_notification_async_path_does_not_speak_yet():
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        app.cfg = AppConfig(dnd_enabled=False, plane_preset_key="airplane")
+        app.persona = MagicMock()
+        app.persona.rewrite.return_value = None  # async path
+
+        app._send_demo_notification()
+
+        app.persona.rewrite.assert_called_once()
+        # TTS/widget not yet called — waiting on rewrite_finished
+        app.tts.speak.assert_not_called()
+        app.widget.enqueue_notification.assert_not_called()

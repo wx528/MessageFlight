@@ -188,4 +188,5 @@ class OpenWakeWordListener(QObject):
         logger.info("OpenWakeWordListener: stopped")
 
     def _on_frame_received(self, _indata, _frames) -> None:
+        logger.info("OpenWakeWordListener: wake word detected (model=%s)", self._model_name)
         self.wake_word_detected.emit()

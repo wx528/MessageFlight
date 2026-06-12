@@ -45,6 +45,7 @@ def main() -> int:
     args = parser.parse_args()
 
     from PyQt6.QtCore import QCoreApplication, QTimer
+
     from message_flight.wake_word import OpenWakeWordListener, WakeWordInitError
 
     app = QCoreApplication(sys.argv)

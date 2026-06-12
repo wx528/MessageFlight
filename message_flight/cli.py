@@ -9,7 +9,7 @@ def main() -> None:
     level = getattr(logging, level_name, logging.INFO)
     logging.basicConfig(
         level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format="%(asctime)s.%(msecs)03d %(levelname)-5s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
     TrayApplication().run()

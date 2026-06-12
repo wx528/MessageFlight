@@ -12,7 +12,7 @@ def test_main_configures_logging_and_runs_tray_app():
 
     basic_config.assert_called_once_with(
         level=20,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format="%(asctime)s.%(msecs)03d %(levelname)-5s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
     tray_app.return_value.run.assert_called_once_with()

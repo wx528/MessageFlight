@@ -641,3 +641,69 @@ def test_unlocked_preset_appears_in_cycle():
             keys.append(app.cfg.plane_preset_key)
 
         assert keys == ["rocket", "ufo", "bird", "duck", "airplane"]
+
+
+# ---------------------------------------------------------------------------
+# Task 9: STTManager wiring + voice command routing
+# ---------------------------------------------------------------------------
+
+
+def test_stt_manager_not_constructed_when_disabled():
+    """When stt_enabled=False, TrayApplication must not construct STTManager."""
+    from unittest.mock import MagicMock, patch
+
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.STTManager") as mock_stt_manager:
+        app = TrayApplication()
+        app.cfg = AppConfig(stt_enabled=False)
+        app._init_stt_manager()
+        assert app._stt_manager is None
+        mock_stt_manager.assert_not_called()
+
+
+def test_voice_command_routes_to_handlers():
+    """Voice commands must dispatch to the existing TrayApplication handlers."""
+    from unittest.mock import MagicMock, patch
+
+    from message_flight.tray_app import TrayApplication
+    from message_flight.voice_commands import VoiceCommand
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        app._toggle_pause = MagicMock()
+        app._on_plane_clicked = MagicMock()
+        app._send_demo_notification = MagicMock()
+        app.action_dnd = MagicMock()
+        app.action_dnd.isChecked.return_value = False
+
+        app._on_voice_command(VoiceCommand.PAUSE.value)
+        app._toggle_pause.assert_called_with(True)
+
+        app._on_voice_command(VoiceCommand.RESUME.value)
+        app._toggle_pause.assert_called_with(False)
+
+        app._on_voice_command(VoiceCommand.NEXT_PRESET.value)
+        app._on_plane_clicked.assert_called_once()
+
+        app._on_voice_command(VoiceCommand.SEND_DEMO.value)
+        app._send_demo_notification.assert_called_once()
+
+        app._on_voice_command(VoiceCommand.TOGGLE_DND.value)
+        app.action_dnd.setChecked.assert_called_with(True)

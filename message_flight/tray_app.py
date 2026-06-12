@@ -2,6 +2,7 @@
 import logging
 import random
 import sys
+from typing import Optional
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPainterPath, QPixmap, QPixmapCache
@@ -19,8 +20,10 @@ from message_flight.persona_rewriter import PersonaRewriter
 from message_flight.plane_presets import get_preset, list_available_presets
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
+from message_flight.stt_manager import STTManager, STTManagerState  # noqa: F401
 from message_flight.toast import ToastManager
 from message_flight.tts_manager import TTSManager
+from message_flight.voice_commands import VoiceCommand
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +64,7 @@ class TrayApplication:
         self.widget.plane.clicked.connect(self._engine.record_plane_click)
 
         # 系统托盘
-        self.tray_icon = QSystemTrayIcon(self._create_tray_icon(), self.app)
+        self.tray_icon = QSystemTrayIcon(self._create_tray_icon("idle"), self.app)
         self.tray_icon.setToolTip("MessageFlight")
 
         self.menu = QMenu()
@@ -121,6 +124,13 @@ class TrayApplication:
 
         # 启动通知监听线程
         self.notifier = None
+
+        # Voice input (v0.4.0+) — only construct if enabled in config
+        self._stt_manager: Optional[STTManager] = None
+        self._voice_icons: dict[str, QIcon] = {}
+        if self.cfg.stt_enabled:
+            self._init_stt_manager()
+
         if WINSOK_AVAILABLE:
             self.notifier = NotificationWorker()
             self.notifier.notification_received.connect(self._on_real_notification)
@@ -129,7 +139,94 @@ class TrayApplication:
         else:
             self.action_notif_status.setText(tr("tray.notification_status.unavailable", self.language))
 
-    def _create_tray_icon(self) -> QIcon:
+    def _init_stt_manager(self) -> None:
+        """Construct STTManager + tray icons; wire signals. Logs + disables on failure."""
+        if not self.cfg.stt_enabled:
+            return
+        try:
+            self._voice_icons["idle"] = self._create_tray_icon("idle")
+            self._voice_icons["listening"] = self._create_tray_icon("listening")
+            self._voice_icons["processing"] = self._create_tray_icon("processing")
+        except Exception as e:
+            logger.error("TrayApplication: failed to build voice icons: %s", e)
+
+        try:
+            self._stt_manager = STTManager(self.cfg)
+        except Exception as e:
+            logger.error("TrayApplication: failed to create STTManager: %s", e)
+            self._toast_manager.show_toast(
+                title=tr("voice.init_failed", self.language),
+                description="",
+                icon="⚠️",
+            )
+            self._stt_manager = None
+            return
+
+        self._stt_manager.state_changed.connect(self._on_voice_state_changed)
+        self._stt_manager.command_recognized.connect(self._on_voice_command)
+        self._stt_manager.transcript_failed.connect(self._on_voice_transcript_failed)
+        self._stt_manager.listening_started.connect(self._on_voice_listening_started)
+        self._stt_manager.start()
+
+    def _on_voice_state_changed(self, state: str) -> None:
+        icon = self._voice_icons.get(state)
+        if icon is not None:
+            self.tray_icon.setIcon(icon)
+
+    def _on_voice_command(self, command_value: str) -> None:
+        logger.info("TrayApplication: voice command received: %s", command_value)
+        try:
+            cmd = VoiceCommand(command_value)
+        except ValueError:
+            logger.error("TrayApplication: unknown voice command %r", command_value)
+            return
+        if cmd == VoiceCommand.PAUSE:
+            self._toggle_pause(True)
+        elif cmd == VoiceCommand.RESUME:
+            self._toggle_pause(False)
+        elif cmd == VoiceCommand.NEXT_PRESET:
+            self._on_plane_clicked()
+        elif cmd == VoiceCommand.TOGGLE_DND:
+            new_state = not self.action_dnd.isChecked()
+            self.action_dnd.setChecked(new_state)
+        elif cmd == VoiceCommand.SEND_DEMO:
+            self._send_demo_notification()
+
+    def _on_voice_transcript_failed(self, reason: str) -> None:
+        logger.info("TrayApplication: voice transcript failed: %s", reason)
+        if reason == "no_match":
+            self._toast_manager.show_toast(
+                title=tr("voice.not_understood", self.language),
+                description="",
+                icon="🤔",
+            )
+        elif reason == "network":
+            self._toast_manager.show_toast(
+                title=tr("voice.network_error", self.language),
+                description="",
+                icon="⚠️",
+            )
+        elif reason == "mic":
+            self._toast_manager.show_toast(
+                title=tr("voice.mic_unavailable", self.language),
+                description="",
+                icon="⚠️",
+            )
+
+    def _on_voice_listening_started(self) -> None:
+        self._toast_manager.show_toast(
+            title=tr("voice.listening", self.language),
+            description="",
+            icon="🎤",
+        )
+
+    def _create_tray_icon(self, state: str = "idle") -> QIcon:
+        """Build a tray icon for the given voice state.
+
+        ``state`` is "idle" / "listening" / "processing". For non-idle
+        states, a colored ring is drawn around the base plane icon to
+        indicate that voice input is active.
+        """
         size = 64
         pixmap = QPixmap(size, size)
         pixmap.fill(Qt.GlobalColor.transparent)
@@ -163,6 +260,17 @@ class TrayApplication:
         painter.setBrush(QColor("#FFFFFF"))
         painter.drawEllipse(52, 24, 6, 6)
         painter.drawEllipse(38, 24, 5, 5)
+
+        # Voice state indicator
+        if state == "listening":
+            painter.setBrush(QColor("#FF0000"))
+            painter.setPen(QColor("#FFFFFF"))
+            painter.drawEllipse(56, 56, 20, 20)
+        elif state == "processing":
+            painter.setBrush(QColor("#FFA500"))
+            painter.setPen(QColor("#FFFFFF"))
+            painter.drawEllipse(56, 56, 20, 20)
+
         painter.end()
         return QIcon(pixmap)
 

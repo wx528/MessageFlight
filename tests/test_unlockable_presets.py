@@ -63,3 +63,23 @@ def test_unlockable_preset_draws_without_raising(qapp, preset_key):
         p.draw(painter, params)
     finally:
         painter.end()
+
+
+def test_list_available_presets_empty_unlocks_returns_defaults():
+    from message_flight.plane_presets import list_available_presets
+    keys = [k for k, _, _ in list_available_presets(set())]
+    assert keys == ["airplane", "rocket", "ufo", "bird"]
+
+
+def test_list_available_presets_with_unlocks_appends_them():
+    from message_flight.plane_presets import list_available_presets
+    keys = [k for k, _, _ in list_available_presets({"sleigh", "duck"})]
+    assert keys[:4] == ["airplane", "rocket", "ufo", "bird"]
+    assert "sleigh" in keys
+    assert "duck" in keys
+
+
+def test_list_available_presets_ignores_unknown_unlock_keys():
+    from message_flight.plane_presets import list_available_presets
+    keys = [k for k, _, _ in list_available_presets({"nonexistent"})]
+    assert "nonexistent" not in keys

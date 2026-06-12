@@ -33,6 +33,19 @@ def list_presets() -> list[tuple[str, str, str]]:
     return [(k, p.name, p.icon) for k, p in PRESETS.items()]
 
 
+def list_available_presets(unlocked: set[str]) -> list[tuple[str, str, str]]:
+    """Return the cycle order: defaults first, then unlocked unlockables.
+
+    Each entry is (key, name, icon). `unlocked` is a set of preset keys
+    that the user has earned. Unknown keys are silently dropped.
+    """
+    result: list[tuple[str, str, str]] = list_presets()
+    for key, cls in UNLOCKABLE_PRESETS.items():
+        if key in unlocked:
+            result.append((key, cls.name, cls.icon))
+    return result
+
+
 UNLOCKABLE_PRESETS: dict[str, type[PlanePreset]] = {
     "duck": DuckPreset,
     "gold_ufo": GoldUFOPreset,

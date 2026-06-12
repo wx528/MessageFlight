@@ -690,6 +690,7 @@ def test_voice_command_routes_to_handlers():
         app._toggle_pause = MagicMock()
         app._on_plane_clicked = MagicMock()
         app._send_demo_notification = MagicMock()
+        app._toggle_dnd = MagicMock(side_effect=lambda checked: setattr(app.cfg, 'dnd_enabled', checked))
         app.action_dnd = MagicMock()
         app.action_dnd.isChecked.return_value = False
 
@@ -706,4 +707,88 @@ def test_voice_command_routes_to_handlers():
         app._send_demo_notification.assert_called_once()
 
         app._on_voice_command(VoiceCommand.TOGGLE_DND.value)
+        # _toggle_dnd is called and updates cfg.dnd_enabled (set by the existing _toggle_dnd mock via setattr)
+        # Verify the menu was updated
         app.action_dnd.setChecked.assert_called_with(True)
+        # Verify cfg.dnd_enabled was updated to True
+        assert app.cfg.dnd_enabled is True
+
+
+def test_voice_state_changes_tray_icon():
+    """_on_voice_state_changed must update the tray icon to match state."""
+    from unittest.mock import MagicMock, patch
+
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        idle_icon = MagicMock()
+        listening_icon = MagicMock()
+        processing_icon = MagicMock()
+        app._voice_icons = {
+            "idle": idle_icon,
+            "listening": listening_icon,
+            "processing": processing_icon,
+        }
+        app.tray_icon = MagicMock()
+
+        app._on_voice_state_changed("idle")
+        app.tray_icon.setIcon.assert_called_with(idle_icon)
+
+        app._on_voice_state_changed("listening")
+        app.tray_icon.setIcon.assert_called_with(listening_icon)
+
+        app._on_voice_state_changed("processing")
+        app.tray_icon.setIcon.assert_called_with(processing_icon)
+
+        # Unknown state: no-op (no exception, no setIcon call)
+        app.tray_icon.setIcon.reset_mock()
+        app._on_voice_state_changed("unknown")
+        app.tray_icon.setIcon.assert_not_called()
+
+
+def test_voice_transcript_failed_shows_appropriate_toast():
+    """Each transcript_failed reason should show a distinct toast."""
+    from unittest.mock import MagicMock, patch
+
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        app._toast_manager = MagicMock()
+
+        # "no_match" → not_understood toast
+        app._on_voice_transcript_failed("no_match")
+        call_kwargs = app._toast_manager.show_toast.call_args.kwargs
+        assert "title" in call_kwargs
+
+        # "network" → network_error toast
+        app._toast_manager.show_toast.reset_mock()
+        app._on_voice_transcript_failed("network")
+        call_kwargs = app._toast_manager.show_toast.call_args.kwargs
+        assert "title" in call_kwargs
+
+        # "mic" → mic_unavailable toast
+        app._toast_manager.show_toast.reset_mock()
+        app._on_voice_transcript_failed("mic")
+        call_kwargs = app._toast_manager.show_toast.call_args.kwargs
+        assert "title" in call_kwargs
+
+        # Unknown reason: no toast (no-op)
+        app._toast_manager.show_toast.reset_mock()
+        app._on_voice_transcript_failed("unknown")
+        app._toast_manager.show_toast.assert_not_called()

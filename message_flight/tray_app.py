@@ -20,7 +20,7 @@ from message_flight.persona_rewriter import PersonaRewriter
 from message_flight.plane_presets import get_preset, list_available_presets
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
-from message_flight.stt_manager import STTManager, STTManagerState  # noqa: F401
+from message_flight.stt_manager import STTManager
 from message_flight.toast import ToastManager
 from message_flight.tts_manager import TTSManager
 from message_flight.voice_commands import VoiceCommand
@@ -188,6 +188,7 @@ class TrayApplication:
             self._on_plane_clicked()
         elif cmd == VoiceCommand.TOGGLE_DND:
             new_state = not self.action_dnd.isChecked()
+            self._toggle_dnd(new_state)
             self.action_dnd.setChecked(new_state)
         elif cmd == VoiceCommand.SEND_DEMO:
             self._send_demo_notification()
@@ -492,6 +493,8 @@ class TrayApplication:
         self.widget.plane.apply_preset(preset, params)
 
     def _quit(self):
+        if self._stt_manager is not None:
+            self._stt_manager.stop()
         if self.notifier:
             self.notifier.stop()
         self.app.quit()

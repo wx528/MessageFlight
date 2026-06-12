@@ -210,10 +210,10 @@ class AppConfig:
     plane_preset_key: str = "airplane"
     plane_preset_params_json: str = ""
     # Gamification (v0.2.7+)
-    unlocked_presets: set = field(default_factory=set)
-    achievement_progress: dict = field(default_factory=dict)
-    distinct_notification_sources: set = field(default_factory=set)
-    presets_used: set = field(default_factory=set)
+    unlocked_presets: set[str] = field(default_factory=set)
+    achievement_progress: dict[str, Any] = field(default_factory=dict)
+    distinct_notification_sources: set[str] = field(default_factory=set)
+    presets_used: set[str] = field(default_factory=set)
     clicks: int = 0
     tts_count: int = 0
     # Do-Not-Disturb
@@ -334,6 +334,13 @@ minimax_subscription_key=your-subscription-key-here
         example_path.write_text(example_content, encoding="utf-8")
 
 
+def _parse_semicolon_set(raw: Any) -> set[str]:
+    """Parse a QSettings string value like 'a;b;c' into a set of strings."""
+    if raw is None or raw == "":
+        return set()
+    return {s for s in str(raw).split(";") if s}
+
+
 def load_config(settings: QSettings | None = None) -> AppConfig:
     """Read the persisted config, falling back to defaults on any failure.
 
@@ -397,22 +404,19 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
         persona_enabled = _parse_bool(settings.value(PERSONA_ENABLED_KEY, True))
         persona_prompts_json = str(settings.value(PERSONA_PROMPTS_JSON_KEY, ""))
         # Gamification (v0.2.7+)
-        unlocked_presets_raw = settings.value(UNLOCKED_PRESETS_KEY, "")
-        unlocked_presets = {s for s in str(unlocked_presets_raw).split(";") if s} if unlocked_presets_raw else set()
+        unlocked_presets = _parse_semicolon_set(settings.value(UNLOCKED_PRESETS_KEY, ""))
 
         progress_raw = settings.value(ACHIEVEMENT_PROGRESS_KEY, "{}")
         try:
-            achievement_progress = json.loads(str(progress_raw)) if progress_raw else {}
-            if not isinstance(achievement_progress, dict):
-                achievement_progress = {}
+            achievement_progress_raw = json.loads(str(progress_raw)) if progress_raw else {}
+            if not isinstance(achievement_progress_raw, dict):
+                achievement_progress_raw = {}
         except (json.JSONDecodeError, TypeError):
-            achievement_progress = {}
+            achievement_progress_raw = {}
+        achievement_progress: dict[str, Any] = achievement_progress_raw
 
-        sources_raw = settings.value(DISTINCT_SOURCES_KEY, "")
-        distinct_notification_sources = {s for s in str(sources_raw).split(";") if s} if sources_raw else set()
-
-        used_raw = settings.value(PRESETS_USED_KEY, "")
-        presets_used = {s for s in str(used_raw).split(";") if s} if used_raw else set()
+        distinct_notification_sources = _parse_semicolon_set(settings.value(DISTINCT_SOURCES_KEY, ""))
+        presets_used = _parse_semicolon_set(settings.value(PRESETS_USED_KEY, ""))
 
         try:
             clicks = int(settings.value(CLICKS_KEY, 0))
@@ -492,8 +496,8 @@ def save_config(cfg: AppConfig, settings: QSettings | None = None) -> None:
         settings.setValue(ACHIEVEMENT_PROGRESS_KEY, json.dumps(cfg.achievement_progress))
         settings.setValue(DISTINCT_SOURCES_KEY, ";".join(sorted(cfg.distinct_notification_sources)))
         settings.setValue(PRESETS_USED_KEY, ";".join(sorted(cfg.presets_used)))
-        settings.setValue(CLICKS_KEY, int(cfg.clicks))
-        settings.setValue(TTS_COUNT_KEY, int(cfg.tts_count))
+        settings.setValue(CLICKS_KEY, cfg.clicks)
+        settings.setValue(TTS_COUNT_KEY, cfg.tts_count)
         settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)

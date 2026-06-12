@@ -24,6 +24,8 @@ _LEGEND = {
     "O": "body",
     "u": "belly",
 }
+_PIXEL_SCALE = 8
+_CANVAS_OFFSET = (10, 10)
 
 
 @dataclass
@@ -53,24 +55,24 @@ class PixelBirdPreset(PlanePreset):
         s = params.body_scale
         src = QImage(len(_PIXEL_MAP[0]), len(_PIXEL_MAP), QImage.Format.Format_ARGB32)
         src.fill(Qt.GlobalColor.transparent)
+        palette = {
+            "outline": params.outline_color,
+            "body": params.body_color,
+            "belly": params.belly_color,
+        }
         for row, line in enumerate(_PIXEL_MAP):
             for col, ch in enumerate(line):
                 key = _LEGEND.get(ch)
                 if key is None:
                     continue
-                color_hex = {
-                    "outline": params.outline_color,
-                    "body": params.body_color,
-                    "belly": params.belly_color,
-                }[key]
-                src.setPixelColor(col, row, QColor(color_hex))
+                src.setPixelColor(col, row, QColor(palette[key]))
         target = src.scaled(
-            int(src.width() * 8 * s),
-            int(src.height() * 8 * s),
-            Qt.AspectRatioMode.IgnoreAspectRatio,
+            int(src.width() * _PIXEL_SCALE * s),
+            int(src.height() * _PIXEL_SCALE * s),
+            Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.FastTransformation,
         )
-        painter.drawImage(10, 10, target)
+        painter.drawImage(*_CANVAS_OFFSET, target)
 
     def get_parameters(self) -> list[ParamDef]:
         return [

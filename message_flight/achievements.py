@@ -7,8 +7,8 @@ side effects.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Optional, Protocol, runtime_checkable
+from dataclasses import dataclass, field
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -16,15 +16,55 @@ class TriggerSpec(Protocol):
     """A predicate the engine evaluates against a state dict."""
 
     def evaluate(self, state: dict[str, Any]) -> bool: ...
+    def state_for(self, **kwargs: Any) -> dict[str, Any] | None: ...
 
 
 @dataclass(frozen=True)
 class CounterTrigger:
     """Fires when the integer at state['count'] reaches target."""
     target: int
+    _state_key: str = field(repr=False, default="count")
 
     def evaluate(self, state: dict[str, Any]) -> bool:
-        return int(state.get("count", 0)) >= self.target
+        return int(state.get(self._state_key, 0)) >= self.target
+
+    def state_for(self, **kwargs: Any) -> dict[str, Any] | None:
+        value = kwargs.get("notifications")
+        if value is None:
+            return None
+        return {self._state_key: value}
+
+
+@dataclass(frozen=True)
+class ClicksTrigger:
+    """Fires when the integer at state['count'] reaches target."""
+    target: int
+    _state_key: str = field(repr=False, default="count")
+
+    def evaluate(self, state: dict[str, Any]) -> bool:
+        return int(state.get(self._state_key, 0)) >= self.target
+
+    def state_for(self, **kwargs: Any) -> dict[str, Any] | None:
+        value = kwargs.get("clicks")
+        if value is None:
+            return None
+        return {self._state_key: value}
+
+
+@dataclass(frozen=True)
+class TTSTrigger:
+    """Fires when the integer at state['count'] reaches target."""
+    target: int
+    _state_key: str = field(repr=False, default="count")
+
+    def evaluate(self, state: dict[str, Any]) -> bool:
+        return int(state.get(self._state_key, 0)) >= self.target
+
+    def state_for(self, **kwargs: Any) -> dict[str, Any] | None:
+        value = kwargs.get("tts_count")
+        if value is None:
+            return None
+        return {self._state_key: value}
 
 
 @dataclass(frozen=True)
@@ -34,6 +74,12 @@ class DistinctSetTrigger:
 
     def evaluate(self, state: dict[str, Any]) -> bool:
         return len(state.get("set", set())) >= self.target
+
+    def state_for(self, **kwargs: Any) -> dict[str, Any] | None:
+        value = kwargs.get("distinct_sources")
+        if value is None:
+            return None
+        return {"set": value}
 
 
 @dataclass(frozen=True)
@@ -52,17 +98,27 @@ class TimeOfDayTrigger:
             return False
         return self.start_hour <= h < self.end_hour
 
+    def state_for(self, **kwargs: Any) -> dict[str, Any] | None:
+        value = kwargs.get("hour")
+        if value is None:
+            return None
+        return {"hour": value}
+
 
 @dataclass(frozen=True)
 class UsedAllPresetsTrigger:
     """Fires when state['presets_used'] is a superset of `required`."""
-    required: frozenset[str]
-
-    def __init__(self, required: set[str] | frozenset[str]):
-        object.__setattr__(self, "required", frozenset(required))
+    required: frozenset[str] = field(default_factory=frozenset)
 
     def evaluate(self, state: dict[str, Any]) -> bool:
         return self.required.issubset(state.get("presets_used", set()))
+
+    def state_for(self, **kwargs: Any) -> dict[str, Any] | None:
+        value = kwargs.get("presets_used")
+        if value is None:
+            return None
+        return {"presets_used": value}
+
 
 
 # ---------------------------------------------------------------------------
@@ -81,8 +137,22 @@ class Achievement:
     name_i18n_key: str
     description_i18n_key: str
     trigger: TriggerSpec
-    unlock_preset_key: Optional[str]
+    unlock_preset_key: str | None
     icon: str
+
+
+TARGET_FIRST_NOTIFICATION = 1
+TARGET_CENTURION = 100
+TARGET_SOCIAL_BUTTERFLY = 5
+TARGET_CLICKER = 10
+TARGET_LOUD_MOUTH = 50
+
+NIGHT_OWL_START = 0
+NIGHT_OWL_END = 5
+EARLY_BIRD_START = 5
+EARLY_BIRD_END = 8
+
+DEFAULT_PRESET_KEYS = frozenset({"airplane", "rocket", "ufo", "bird"})
 
 
 ACHIEVEMENTS: list[Achievement] = [
@@ -90,7 +160,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="first_flight",
         name_i18n_key="achievement.first_flight.name",
         description_i18n_key="achievement.first_flight.desc",
-        trigger=CounterTrigger(target=1),
+        trigger=CounterTrigger(target=TARGET_FIRST_NOTIFICATION),
         unlock_preset_key="sleigh",
         icon="🎅",
     ),
@@ -98,7 +168,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="centurion",
         name_i18n_key="achievement.centurion.name",
         description_i18n_key="achievement.centurion.desc",
-        trigger=CounterTrigger(target=100),
+        trigger=CounterTrigger(target=TARGET_CENTURION),
         unlock_preset_key="duck",
         icon="🦆",
     ),
@@ -106,7 +176,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="social_butterfly",
         name_i18n_key="achievement.social_butterfly.name",
         description_i18n_key="achievement.social_butterfly.desc",
-        trigger=DistinctSetTrigger(target=5),
+        trigger=DistinctSetTrigger(target=TARGET_SOCIAL_BUTTERFLY),
         unlock_preset_key="rainbow_rocket",
         icon="🌈",
     ),
@@ -114,7 +184,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="night_owl",
         name_i18n_key="achievement.night_owl.name",
         description_i18n_key="achievement.night_owl.desc",
-        trigger=TimeOfDayTrigger(start_hour=0, end_hour=5),
+        trigger=TimeOfDayTrigger(start_hour=NIGHT_OWL_START, end_hour=NIGHT_OWL_END),
         unlock_preset_key="gold_ufo",
         icon="✨",
     ),
@@ -122,7 +192,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="early_bird",
         name_i18n_key="achievement.early_bird.name",
         description_i18n_key="achievement.early_bird.desc",
-        trigger=TimeOfDayTrigger(start_hour=5, end_hour=8),
+        trigger=TimeOfDayTrigger(start_hour=EARLY_BIRD_START, end_hour=EARLY_BIRD_END),
         unlock_preset_key="pixel_bird",
         icon="🐤",
     ),
@@ -130,7 +200,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="clicker",
         name_i18n_key="achievement.clicker.name",
         description_i18n_key="achievement.clicker.desc",
-        trigger=CounterTrigger(target=10),
+        trigger=ClicksTrigger(target=TARGET_CLICKER),
         unlock_preset_key=None,
         icon="🏆",
     ),
@@ -138,7 +208,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="loud_mouth",
         name_i18n_key="achievement.loud_mouth.name",
         description_i18n_key="achievement.loud_mouth.desc",
-        trigger=CounterTrigger(target=50),
+        trigger=TTSTrigger(target=TARGET_LOUD_MOUTH),
         unlock_preset_key=None,
         icon="🏆",
     ),
@@ -146,7 +216,7 @@ ACHIEVEMENTS: list[Achievement] = [
         id="try_them_all",
         name_i18n_key="achievement.try_them_all.name",
         description_i18n_key="achievement.try_them_all.desc",
-        trigger=UsedAllPresetsTrigger(required={"airplane", "rocket", "ufo", "bird"}),
+        trigger=UsedAllPresetsTrigger(required=DEFAULT_PRESET_KEYS),
         unlock_preset_key=None,
         icon="🏆",
     ),

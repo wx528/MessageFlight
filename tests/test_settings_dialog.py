@@ -213,3 +213,48 @@ def test_settings_dialog_i18n_has_persona_keys(qapp):
         assert "settings.persona.preset" in _TRANSLATIONS[lang]
         assert "settings.persona.reset" in _TRANSLATIONS[lang]
         assert "settings.persona.prompt_placeholder" in _TRANSLATIONS[lang]
+
+
+def _select_persona(dlg, key: str) -> None:
+    """Switch the persona preset combo to the given key (matching by item data)."""
+    dlg._persona_preset_combo.setCurrentIndex(dlg._persona_preset_combo.findData(key))
+
+
+def test_settings_dialog_preserves_edit_when_switching_presets(qapp):
+    """Editing preset A then switching to preset B and clicking OK must keep A's edit."""
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig()
+    dlg = SettingsDialog(cfg)
+
+    # Start on airplane (default)
+    _select_persona(dlg, "airplane")
+    dlg._persona_prompt_edit.setPlainText("CUSTOM airplane edit")
+
+    # Switch to rocket — this should snapshot airplane's edit before clobbering
+    _select_persona(dlg, "rocket")
+    dlg._persona_prompt_edit.setPlainText("CUSTOM rocket edit")
+
+    # OK
+    enabled, prompts_json = dlg.get_persona_result()
+    prompts = json.loads(prompts_json)
+    assert prompts.get("airplane") == "CUSTOM airplane edit"
+    assert prompts.get("rocket") == "CUSTOM rocket edit"
+
+
+def test_settings_dialog_drops_edit_when_text_matches_default(qapp):
+    """If the user did not actually edit (text == default), don't store it."""
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig()
+    dlg = SettingsDialog(cfg)
+    _select_persona(dlg, "airplane")
+    # Text is the default; do not edit.
+    _select_persona(dlg, "rocket")
+    # Switch back to airplane; the dialog should NOT have stored airplane in prompts.
+    _select_persona(dlg, "airplane")
+    enabled, prompts_json = dlg.get_persona_result()
+    prompts = json.loads(prompts_json)
+    assert "airplane" not in prompts

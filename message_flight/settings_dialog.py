@@ -1,6 +1,7 @@
 """Modal settings dialog for editing the 9-color plane/banner palette and the flight mode preset."""
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from PyQt6.QtGui import QColor
@@ -143,6 +144,7 @@ class SettingsDialog(QDialog):
         persona_box.addWidget(self._persona_prompt_edit)
 
         self._persona_prompts: dict[str, str] = self._parse_persona_prompts(initial.persona_prompts_json)
+        self._active_persona_key: Optional[str] = None
         self._on_persona_preset_changed()
         root.addLayout(persona_box)
 
@@ -300,7 +302,6 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _parse_persona_prompts(raw: str) -> dict[str, str]:
-        import json
         if not raw:
             return {}
         try:
@@ -312,12 +313,22 @@ class SettingsDialog(QDialog):
         return {str(k): str(v) for k, v in data.items()}
 
     def _on_persona_preset_changed(self) -> None:
-        current_key = self._persona_preset_combo.currentData()
-        if not current_key:
-            return
         from message_flight.plane_presets import get_preset
-        existing = self._persona_prompts.get(current_key, "")
-        self._persona_prompt_edit.setPlainText(existing or get_preset(current_key).system_prompt)
+        new_key = self._persona_preset_combo.currentData()
+        if not new_key:
+            return
+        # Save the in-progress edit under the OLD key before switching
+        old_key = getattr(self, "_active_persona_key", None)
+        if old_key and old_key != new_key:
+            current_text = self._persona_prompt_edit.toPlainText()
+            default_text = get_preset(old_key).system_prompt
+            if current_text == default_text:
+                self._persona_prompts.pop(old_key, None)
+            else:
+                self._persona_prompts[old_key] = current_text
+        self._active_persona_key = new_key
+        existing = self._persona_prompts.get(new_key, "")
+        self._persona_prompt_edit.setPlainText(existing or get_preset(new_key).system_prompt)
 
     def _on_reset_persona_prompt(self) -> None:
         from message_flight.plane_presets import get_preset
@@ -326,10 +337,12 @@ class SettingsDialog(QDialog):
         self._persona_prompt_edit.setPlainText(get_preset(current_key).system_prompt)
 
     def get_persona_result(self) -> tuple[bool, str]:
-        # Snapshot the current edit into the in-memory dict
+        from message_flight.plane_presets import get_preset
         current_key = self._persona_preset_combo.currentData() or "airplane"
         edited = self._persona_prompt_edit.toPlainText()
-        if edited:
+        default = get_preset(current_key).system_prompt
+        if edited == default:
+            self._persona_prompts.pop(current_key, None)
+        elif edited:
             self._persona_prompts[current_key] = edited
-        import json
         return self._persona_enabled_checkbox.isChecked(), json.dumps(self._persona_prompts, ensure_ascii=False)

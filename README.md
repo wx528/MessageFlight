@@ -29,6 +29,7 @@ Let Windows notifications fly across your screen like a little plane.
 - Lightweight UI languages: Chinese, English, Japanese, Korean, Indonesian, Thai, Vietnamese, and Malay
 - Custom colors, flight paths, and vehicle presets
 - Optional TTS support through SAPI or MiniMax
+- Optional voice commands via local wake word + cloud STT
 
 ## Quick Start
 

@@ -29,6 +29,7 @@
 - 轻量多语言界面：中文、英语、日语、韩语、印尼语、泰语、越南语、马来语
 - 支持自定义配色、飞行路径和飞行器预设
 - 可选 TTS：SAPI 或 MiniMax
+- 可选的语音命令：本地唤醒词 + 云端 STT
 
 ## 快速开始
 
@@ -49,5 +50,9 @@ python message_flight.py
 uv sync
 uv run python message_flight.py
 ```
+
+## 注意事项
+
+- 首次启用语音命令时，openwakeword 会自动下载约 30MB 的预训练模型，需要联网。
 
 [MIT License](LICENSE)

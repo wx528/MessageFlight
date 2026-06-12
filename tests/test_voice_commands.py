@@ -60,5 +60,19 @@ def test_parse_command_prefers_first_matching() -> None:
     assert parse_command("pause and resume") == VoiceCommand.PAUSE
 
 
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("stop and switch", VoiceCommand.PAUSE),  # PAUSE before NEXT_PRESET
+        ("start demo", VoiceCommand.RESUME),       # RESUME before SEND_DEMO
+        ("暂停 下一个", VoiceCommand.PAUSE),        # zh: PAUSE before NEXT_PRESET
+        ("next demo", VoiceCommand.NEXT_PRESET),   # NEXT_PRESET before SEND_DEMO
+    ],
+)
+def test_parse_command_prefers_first_matching_extended(text: str, expected: VoiceCommand) -> None:
+    """Each pairing: the first command in COMMAND_PATTERNS wins on ambiguous input."""
+    assert parse_command(text) == expected
+
+
 def test_command_patterns_has_all_voice_commands() -> None:
     assert set(COMMAND_PATTERNS.keys()) == set(VoiceCommand)

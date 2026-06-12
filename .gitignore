@@ -41,6 +41,7 @@ docs/advice/
 # (specs/ is committed; everything else under superpowers/ is a local skill cache)
 docs/superpowers/**/*.md
 !docs/superpowers/specs/
+!docs/superpowers/specs/**/*.md
 !docs/superpowers/.gitkeep
 !docs/superpowers/**/.gitkeep
 

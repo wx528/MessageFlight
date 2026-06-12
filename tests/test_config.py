@@ -347,3 +347,16 @@ def test_app_config_new_fields_round_trip(tmp_path, monkeypatch):
     assert loaded.presets_used == {"airplane", "rocket", "ufo", "bird"}
     assert loaded.clicks == 42
     assert loaded.tts_count == 17
+
+
+def test_stt_settings_round_trip(tmp_path, monkeypatch):
+    """The stt_enabled and stt_wake_word fields must round-trip through QSettings."""
+    monkeypatch.setenv("MESSAGEFLIGHT_CONFIG_DIR", str(tmp_path))
+    settings = QSettings(str(tmp_path / "test.ini"), QSettings.Format.IniFormat)
+
+    cfg = AppConfig(stt_enabled=True, stt_wake_word="alexa")
+    save_config(cfg, settings=settings)
+    loaded = load_config(settings=settings)
+
+    assert loaded.stt_enabled is True
+    assert loaded.stt_wake_word == "alexa"

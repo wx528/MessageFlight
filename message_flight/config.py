@@ -45,6 +45,10 @@ VALID_TTS_PROVIDERS = ("sapi", "minimax")
 PERSONA_ENABLED_KEY = "persona_enabled"
 PERSONA_PROMPTS_JSON_KEY = "persona_prompts_json"
 
+# Voice input (v0.4.0+)
+STT_ENABLED_KEY = "stt_enabled"
+STT_WAKE_WORD_KEY = "stt_wake_word"
+
 # Gamification (v0.2.7+)
 UNLOCKED_PRESETS_KEY = "unlocked_presets"
 ACHIEVEMENT_PROGRESS_KEY = "achievement_progress"
@@ -224,6 +228,9 @@ class AppConfig:
     # AI persona
     persona_enabled: bool = True
     persona_prompts_json: str = ""
+    # Voice input (v0.4.0+)
+    stt_enabled: bool = False
+    stt_wake_word: str = "hey_jarvis"
 
 
 def _parse_hhmm(text: str) -> Optional[int]:
@@ -403,6 +410,9 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
         # AI persona
         persona_enabled = _parse_bool(settings.value(PERSONA_ENABLED_KEY, True))
         persona_prompts_json = str(settings.value(PERSONA_PROMPTS_JSON_KEY, ""))
+        # Voice input
+        stt_enabled = _parse_bool(settings.value(STT_ENABLED_KEY, False))
+        stt_wake_word = str(settings.value(STT_WAKE_WORD_KEY, "hey_jarvis"))
         # Gamification (v0.2.7+)
         unlocked_presets = _parse_semicolon_set(settings.value(UNLOCKED_PRESETS_KEY, ""))
 
@@ -446,6 +456,8 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
         dnd_schedule_end=dnd_schedule_end,
         persona_enabled=persona_enabled,
         persona_prompts_json=persona_prompts_json,
+        stt_enabled=stt_enabled,
+        stt_wake_word=stt_wake_word,
         unlocked_presets=unlocked_presets,
         achievement_progress=achievement_progress,
         distinct_notification_sources=distinct_notification_sources,
@@ -492,6 +504,8 @@ def save_config(cfg: AppConfig, settings: QSettings | None = None) -> None:
         settings.setValue(DND_SCHEDULE_END_KEY, cfg.dnd_schedule_end)
         settings.setValue(PERSONA_ENABLED_KEY, cfg.persona_enabled)
         settings.setValue(PERSONA_PROMPTS_JSON_KEY, cfg.persona_prompts_json)
+        settings.setValue(STT_ENABLED_KEY, cfg.stt_enabled)
+        settings.setValue(STT_WAKE_WORD_KEY, cfg.stt_wake_word)
         settings.setValue(UNLOCKED_PRESETS_KEY, ";".join(sorted(cfg.unlocked_presets)))
         settings.setValue(ACHIEVEMENT_PROGRESS_KEY, json.dumps(cfg.achievement_progress))
         settings.setValue(DISTINCT_SOURCES_KEY, ";".join(sorted(cfg.distinct_notification_sources)))

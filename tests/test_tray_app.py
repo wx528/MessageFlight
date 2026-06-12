@@ -545,3 +545,99 @@ def test_preset_change_records_engine_event():
         app._on_plane_clicked()
 
         mock_engine.record_preset_used.assert_called_once_with("rocket")
+
+
+# ---------------------------------------------------------------------------
+# Task 18: click cycle respects unlocked presets
+# ---------------------------------------------------------------------------
+
+
+def test_plane_click_cycles_only_available_presets():
+    """Only defaults plus unlocked presets appear in the click cycle."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.TrayApplication._apply_preset_to_widget"), \
+         patch("message_flight.tray_app.save_config"):
+        app = TrayApplication()
+        app.cfg = AppConfig(
+            plane_preset_key="airplane",
+            plane_preset_params_json="",
+            unlocked_presets={"sleigh"},
+        )
+        app.persona = MagicMock()
+
+        keys = []
+        for _ in range(5):
+            app._on_plane_clicked()
+            keys.append(app.cfg.plane_preset_key)
+
+        assert keys == ["rocket", "ufo", "bird", "sleigh", "airplane"]
+
+
+def test_plane_click_falls_back_when_current_locked():
+    """If current preset is locked/unavailable, click falls back to first default."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.TrayApplication._apply_preset_to_widget") as mock_apply, \
+         patch("message_flight.tray_app.save_config"):
+        app = TrayApplication()
+        app.cfg = AppConfig(
+            plane_preset_key="duck",
+            plane_preset_params_json="",
+            unlocked_presets=set(),
+        )
+        app.persona = MagicMock()
+
+        app._on_plane_clicked()
+
+        assert app.cfg.plane_preset_key == "airplane"
+        mock_apply.assert_called_once_with("airplane", "")
+
+
+def test_unlocked_preset_appears_in_cycle():
+    """An unlocked preset should appear in the click cycle after the defaults."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.TrayApplication._apply_preset_to_widget"), \
+         patch("message_flight.tray_app.save_config"):
+        app = TrayApplication()
+        app.cfg = AppConfig(
+            plane_preset_key="airplane",
+            plane_preset_params_json="",
+            unlocked_presets={"duck"},
+        )
+        app.persona = MagicMock()
+
+        keys = []
+        for _ in range(5):
+            app._on_plane_clicked()
+            keys.append(app.cfg.plane_preset_key)
+
+        assert keys == ["rocket", "ufo", "bird", "duck", "airplane"]

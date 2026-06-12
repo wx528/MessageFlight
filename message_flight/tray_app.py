@@ -17,7 +17,7 @@ from message_flight.flight_widget import FlightWidget
 from message_flight.i18n import tr
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
 from message_flight.persona_rewriter import PersonaRewriter
-from message_flight.plane_presets import get_preset, list_presets
+from message_flight.plane_presets import get_preset, list_available_presets
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
 from message_flight.toast import ToastManager
@@ -259,14 +259,14 @@ class TrayApplication:
         the TTS voice profile and the persona rewriter. Persists the new
         preset key to QSettings.
         """
-        cycle_order = [k for k, _, _ in list_presets()]
+        cycle_order = [k for k, _, _ in list_available_presets(self.cfg.unlocked_presets)]
         if not cycle_order:
             return
         try:
             idx = cycle_order.index(self.cfg.plane_preset_key)
+            new_key = cycle_order[(idx + 1) % len(cycle_order)]
         except ValueError:
-            idx = 0
-        new_key = cycle_order[(idx + 1) % len(cycle_order)]
+            new_key = cycle_order[0]
         self.cfg.plane_preset_key = new_key
         self.cfg.plane_preset_params_json = ""
         try:

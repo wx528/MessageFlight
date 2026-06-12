@@ -552,4 +552,6 @@ def _default_config() -> AppConfig:
         dnd_schedule_end="08:00",
         persona_enabled=True,
         persona_prompts_json="",
+        stt_enabled=False,
+        stt_wake_word="hey_jarvis",
     )

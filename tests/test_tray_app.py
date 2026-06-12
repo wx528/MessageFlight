@@ -322,3 +322,119 @@ def test_send_demo_notification_async_path_does_not_speak_yet():
         # TTS/widget not yet called — waiting on rewrite_finished
         app.tts.speak.assert_not_called()
         app.widget.enqueue_notification.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Task 13: click on plane cycles to next preset
+# ---------------------------------------------------------------------------
+
+
+def test_on_plane_clicked_cycles_to_next_preset():
+    """Clicking the plane should cycle airplane → rocket → ufo → bird → airplane."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager") as mock_tts_cls, \
+         patch("message_flight.tray_app.TrayApplication._apply_preset_to_widget") as mock_apply, \
+         patch("message_flight.tray_app.save_config"):
+        mock_tts = MagicMock()
+        mock_tts_cls.return_value = mock_tts
+        app = TrayApplication()
+        app.cfg = AppConfig(plane_preset_key="airplane", plane_preset_params_json="")
+        app.persona = MagicMock()
+
+        app._on_plane_clicked()
+
+        assert app.cfg.plane_preset_key == "rocket"
+        # params reset to default on cycle
+        assert app.cfg.plane_preset_params_json == ""
+        mock_apply.assert_called_once_with("rocket", "")
+        # TTS voice profile updated to rocket preset
+        mock_tts.set_voice.assert_called_once()
+        voice_args = mock_tts.set_voice.call_args.args
+        assert voice_args[0] == "male-qn-jingying"  # rocket voice_id (see preset)
+        # Persona rewriter reconfigured for the new preset
+        app.persona.set_config.assert_called_once()
+        assert app.persona.set_config.call_args.kwargs["preset_key"] == "rocket"
+
+
+def test_on_plane_clicked_wraps_around():
+    """The last preset in the cycle should wrap back to the first."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager") as mock_tts_cls, \
+         patch("message_flight.tray_app.TrayApplication._apply_preset_to_widget") as mock_apply, \
+         patch("message_flight.tray_app.save_config"):
+        mock_tts = MagicMock()
+        mock_tts_cls.return_value = mock_tts
+        app = TrayApplication()
+        app.cfg = AppConfig(plane_preset_key="bird", plane_preset_params_json="")
+        app.persona = MagicMock()
+
+        app._on_plane_clicked()
+
+        assert app.cfg.plane_preset_key == "airplane"
+        mock_apply.assert_called_once_with("airplane", "")
+
+
+def test_on_plane_clicked_clears_custom_params():
+    """Switching preset via click must drop any user-tuned params_json."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.TrayApplication._apply_preset_to_widget") as mock_apply, \
+         patch("message_flight.tray_app.save_config"):
+        app = TrayApplication()
+        app.cfg = AppConfig(
+            plane_preset_key="airplane",
+            plane_preset_params_json='{"plane_color": "#000000"}',
+        )
+        app.persona = MagicMock()
+
+        app._on_plane_clicked()
+
+        assert app.cfg.plane_preset_params_json == ""
+        mock_apply.assert_called_once()
+        # _apply_preset_to_widget must be invoked with empty params to use defaults
+        assert mock_apply.call_args.args[1] == ""
+
+
+def test_tray_app_connects_banner_clicked_signal():
+    """The TrayApplication must wire plane.clicked so click cycles preset."""
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        # widget.plane is a MagicMock (FlightWidget is mocked)
+        # Verify the .clicked signal of the banner was connected to a slot
+        app.widget.plane.clicked.connect.assert_called_once_with(app._on_plane_clicked)

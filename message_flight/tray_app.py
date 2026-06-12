@@ -15,7 +15,7 @@ from message_flight.flight_widget import FlightWidget
 from message_flight.i18n import tr
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
 from message_flight.persona_rewriter import PersonaRewriter
-from message_flight.plane_presets import get_preset
+from message_flight.plane_presets import get_preset, list_presets
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
 from message_flight.tts_manager import TTSManager
@@ -47,6 +47,9 @@ class TrayApplication:
             enabled=self.cfg.persona_enabled,
         )
         self.persona.rewrite_finished.connect(self._on_persona_rewritten)
+
+        # Click on the plane cycles to the next preset
+        self.widget.plane.clicked.connect(self._on_plane_clicked)
 
         # 系统托盘
         self.tray_icon = QSystemTrayIcon(self._create_tray_icon(), self.app)
@@ -219,6 +222,37 @@ class TrayApplication:
         self.tts.speak(spoken)
         self.widget.enqueue_notification(spoken)
         self._show_widget()
+
+    def _on_plane_clicked(self) -> None:
+        """Cycle the active plane preset (airplane → rocket → ufo → bird → airplane).
+
+        Resets the per-preset params to defaults and propagates the change to
+        the TTS voice profile and the persona rewriter. Persists the new
+        preset key to QSettings.
+        """
+        cycle_order = [k for k, _, _ in list_presets()]
+        if not cycle_order:
+            return
+        try:
+            idx = cycle_order.index(self.cfg.plane_preset_key)
+        except ValueError:
+            idx = 0
+        new_key = cycle_order[(idx + 1) % len(cycle_order)]
+        self.cfg.plane_preset_key = new_key
+        self.cfg.plane_preset_params_json = ""
+        try:
+            save_config(self.cfg)
+        except Exception as e:
+            logger.warning("Failed to persist preset change: %s", e)
+        self._apply_preset_to_widget(new_key, "")
+        preset = get_preset(new_key)
+        self.tts.set_voice(preset.tts_voice_id, preset.tts_speed, preset.tts_pitch)
+        self.persona.set_config(
+            api_key=self.cfg.minimax_subscription_key,
+            preset_key=new_key,
+            system_prompt=self._persona_prompt_for(new_key),
+            enabled=self.cfg.persona_enabled,
+        )
 
     def _persona_prompt_for(self, preset_key: str) -> str:
         prompts = self._load_persona_prompts()

@@ -18,11 +18,11 @@ PRESETS: dict[str, Type[PlanePreset]] = {
 
 
 def get_preset(key: str) -> PlanePreset:
-    if key in PRESETS:
-        return PRESETS[key]()
     if key in UNLOCKABLE_PRESETS:
         return UNLOCKABLE_PRESETS[key]()
-    raise KeyError(key)
+    if key not in PRESETS:
+        key = "airplane"
+    return PRESETS[key]()
 
 
 def list_presets() -> list[tuple[str, str, str]]:

@@ -100,6 +100,7 @@ class MiniMaxReader(TTSReader, QObject):
     _ENDPOINT = "https://api.minimaxi.com/v1/t2a_v2"
     _DEFAULT_VOICE = "male-qn-qingse"
     _TIMEOUT_MS = 10000
+    _pitch: int = 0
 
     def __init__(
         self,

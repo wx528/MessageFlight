@@ -81,6 +81,20 @@ class TTSManager(QObject):
         if old_provider != self._current_provider_name:
             self.provider_changed.emit(self._current_provider_name)
 
+    def set_voice(self, voice_id: str, speed: float, pitch: int) -> None:
+        """Update the active MiniMax TTS reader's voice profile.
+
+        No-op when the current provider is SAPI or unknown, since
+        Windows native voice selection is not driven from here.
+        """
+        provider = self._providers.get(self._current_provider_name)
+        if provider is None:
+            return
+        if isinstance(provider, MiniMaxReader):
+            provider._voice_id = voice_id
+            provider._speed = float(speed)
+            provider._pitch = int(pitch)
+
     def _on_minimax_error(self, error_msg: str, original_text: str) -> None:
         """Handle MiniMax error by falling back to SAPI.
 

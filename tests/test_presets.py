@@ -189,3 +189,40 @@ def test_all_presets_params_json_serializable():
         params = preset_obj.get_default_params()
         data = dataclasses.asdict(params)
         json.dumps(data)
+
+
+@pytest.mark.parametrize("key", ["airplane", "rocket", "ufo", "bird"])
+def test_each_preset_has_non_empty_system_prompt(key):
+    preset = get_preset(key)
+    prompt = preset.system_prompt.strip()
+    assert prompt, f"preset {key} must have a default system_prompt"
+    assert len(prompt) <= 2000
+
+
+def test_list_presets_exposes_system_prompt_for_every_registered_preset():
+    for key, _name, _icon in list_presets():
+        prompt = get_preset(key).system_prompt.strip()
+        assert prompt, f"preset {key} must have a non-empty system_prompt"
+        assert len(prompt) <= 2000
+
+
+@pytest.mark.parametrize("key", ["airplane", "rocket", "ufo", "bird"])
+def test_each_preset_has_tts_voice_profile(key):
+    preset = get_preset(key)
+    assert isinstance(preset.tts_voice_id, str) and preset.tts_voice_id, \
+        f"preset {key} must have a non-empty tts_voice_id"
+    assert isinstance(preset.tts_speed, (int, float))
+    assert 0.5 <= float(preset.tts_speed) <= 2.0
+    assert isinstance(preset.tts_pitch, int)
+    assert -10 <= preset.tts_pitch <= 10
+
+
+def test_presets_have_distinct_voice_ids_or_distinct_speeds():
+    """At least two presets should have a distinct (voice_id, speed) pair so
+    switching planes produces a perceivably different TTS voice."""
+    profiles = {
+        get_preset(k).tts_voice_id: get_preset(k).tts_speed
+        for k in ("airplane", "rocket", "ufo", "bird")
+    }
+    assert len(set(profiles.items())) >= 2, \
+        f"all presets share the same voice; expected at least 2 distinct (voice, speed) pairs: {profiles}"

@@ -21,6 +21,10 @@ class ParamDef:
 class PlanePreset(ABC):
     name: str = ""
     icon: str = ""
+    system_prompt: str = ""
+    tts_voice_id: str = ""
+    tts_speed: float = 1.0
+    tts_pitch: int = 0
 
     @abstractmethod
     def draw(self, painter: QPainter, params: Any) -> None:

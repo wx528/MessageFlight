@@ -1,9 +1,28 @@
 """Tests for PlaneBanner color customization (Task 02) and preset delegation (Task 05)."""
+import os
+import sys
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 from unittest.mock import MagicMock, patch
 
-from PyQt6.QtGui import QColor
+import pytest
+from PyQt6.QtCore import QPointF, Qt
+from PyQt6.QtGui import QColor, QMouseEvent
+from PyQt6.QtWidgets import QApplication
 
 from message_flight.plane_banner import PlaneBanner
+
+
+@pytest.fixture(scope="module")
+def qapp():
+    """Module-scoped QApplication — required for any PyQt6 widget construction
+    in the click-vs-drag tests below. Existing tests in this file mock out
+    QWidget.__init__, so they don't need a real QApplication, but the new
+    click/drag tests do because they call show() and processEvents().
+    """
+    app = QApplication.instance() or QApplication(sys.argv)
+    yield app
 
 # ---------------------------------------------------------------------------
 # Task 02: color customization tests
@@ -148,3 +167,70 @@ def test_update_colors_does_not_set_text_color_on_preset_params():
     # AirplaneParameters now has text_color field; update_colors should
     # update it like any other color parameter.
     assert banner._params.text_color == "#AABBCC"
+
+
+# ---------------------------------------------------------------------------
+# Task 09: distinguish click vs. drag via clicked signal
+# ---------------------------------------------------------------------------
+
+
+def _press(pos=(50, 50), button=Qt.MouseButton.LeftButton):
+    return QMouseEvent(
+        QMouseEvent.Type.MouseButtonPress,
+        QPointF(*pos),
+        button,
+        button,
+        Qt.KeyboardModifier.NoModifier,
+    )
+
+
+def _move(pos=(50, 50), button=Qt.MouseButton.LeftButton):
+    return QMouseEvent(
+        QMouseEvent.Type.MouseMove,
+        QPointF(*pos),
+        Qt.MouseButton.NoButton,
+        button,
+        Qt.KeyboardModifier.NoModifier,
+    )
+
+
+def _release(pos=(50, 50), button=Qt.MouseButton.LeftButton):
+    return QMouseEvent(
+        QMouseEvent.Type.MouseButtonRelease,
+        QPointF(*pos),
+        button,
+        Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+
+
+def test_plane_banner_emits_clicked_on_short_press_no_drag(qapp):
+    banner = PlaneBanner()
+    banner.resize(360, 100)
+    banner.show()
+    QApplication.processEvents()
+
+    clicked = MagicMock()
+    banner.clicked.connect(clicked)
+
+    banner.mousePressEvent(_press((50, 50)))
+    banner.mouseReleaseEvent(_release((50, 50)))
+
+    clicked.assert_called_once()
+
+
+def test_plane_banner_does_not_emit_clicked_when_dragged(qapp):
+    banner = PlaneBanner()
+    banner.resize(360, 100)
+    banner.show()
+    QApplication.processEvents()
+
+    clicked = MagicMock()
+    banner.clicked.connect(clicked)
+
+    banner.mousePressEvent(_press((50, 50)))
+    # Move more than the drag threshold (5px)
+    banner.mouseMoveEvent(_move((80, 50)))
+    banner.mouseReleaseEvent(_release((80, 50)))
+
+    clicked.assert_not_called()

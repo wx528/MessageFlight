@@ -28,6 +28,13 @@ class BirdParameters:
 class BirdPreset(PlanePreset):
     name = "小鸟"
     icon = "🐦"
+    system_prompt = (
+        "你是这只信鸽。请用俏皮、活泼的语气播报收到的系统通知。"
+        "始终称呼用户为'朋友'。限制在 30 个汉字以内，可加 1 个 emoji。"
+    )
+    tts_voice_id = "female-yujie"
+    tts_speed = 1.15
+    tts_pitch = 2
 
     def __init__(self):
         self._animation_time = 0.0

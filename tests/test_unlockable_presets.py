@@ -20,7 +20,7 @@ def qapp():
 @pytest.mark.parametrize("preset_key", [
     "sleigh",
     "duck",
-    pytest.param("rainbow_rocket", marks=pytest.mark.xfail(reason="implemented in Task 9")),
+    "rainbow_rocket",
     pytest.param("gold_ufo", marks=pytest.mark.xfail(reason="implemented in Task 10")),
     pytest.param("pixel_bird", marks=pytest.mark.xfail(reason="implemented in Task 11")),
 ])
@@ -33,7 +33,7 @@ def test_unlockable_preset_is_registered(preset_key):
 @pytest.mark.parametrize("preset_key", [
     "sleigh",
     "duck",
-    pytest.param("rainbow_rocket", marks=pytest.mark.xfail(reason="implemented in Task 9")),
+    "rainbow_rocket",
     pytest.param("gold_ufo", marks=pytest.mark.xfail(reason="implemented in Task 10")),
     pytest.param("pixel_bird", marks=pytest.mark.xfail(reason="implemented in Task 11")),
 ])
@@ -48,7 +48,7 @@ def test_unlockable_preset_can_be_instantiated(preset_key):
 @pytest.mark.parametrize("preset_key", [
     "sleigh",
     "duck",
-    pytest.param("rainbow_rocket", marks=pytest.mark.xfail(reason="implemented in Task 9")),
+    "rainbow_rocket",
     pytest.param("gold_ufo", marks=pytest.mark.xfail(reason="implemented in Task 10")),
     pytest.param("pixel_bird", marks=pytest.mark.xfail(reason="implemented in Task 11")),
 ])

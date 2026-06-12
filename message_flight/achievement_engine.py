@@ -89,7 +89,7 @@ class AchievementEngine(QObject):
             else:
                 fired_milestones = set(self._cfg.achievement_progress.get("_fired_milestones", []))
                 fired_milestones.add(a.id)
-                self._cfg.achievement_progress["_fired_milestones"] = fired_milestones
+                self._cfg.achievement_progress["_fired_milestones"] = sorted(fired_milestones)
                 self.milestone.emit(a.id)
                 logger.info("Milestone hit: %s", a.id)
 

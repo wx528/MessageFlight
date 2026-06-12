@@ -8,6 +8,8 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPainterPath, QPixmap, QPixmapCache
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QSystemTrayIcon
 
+from message_flight.achievement_engine import AchievementEngine
+from message_flight.achievements import ACHIEVEMENTS
 from message_flight.autostart import is_auto_start_enabled, set_auto_start
 from message_flight.config import is_dnd_active, load_config, save_config
 from message_flight.demo_notifications import NOTIFICATIONS
@@ -18,6 +20,7 @@ from message_flight.persona_rewriter import PersonaRewriter
 from message_flight.plane_presets import get_preset, list_presets
 from message_flight.preset_editor import PresetEditorWindow
 from message_flight.settings_dialog import SettingsDialog
+from message_flight.toast import ToastManager
 from message_flight.tts_manager import TTSManager
 
 logger = logging.getLogger(__name__)
@@ -48,8 +51,15 @@ class TrayApplication:
         )
         self.persona.rewrite_finished.connect(self._on_persona_rewritten)
 
+        # Gamification engine (Task 17)
+        self._engine = AchievementEngine(self.cfg)
+        self._toast_manager = ToastManager()
+        self._engine.unlocked.connect(self._on_achievement_unlocked)
+        self._engine.check_time_based()
+
         # Click on the plane cycles to the next preset
         self.widget.plane.clicked.connect(self._on_plane_clicked)
+        self.widget.plane.clicked.connect(self._engine.record_plane_click)
 
         # 系统托盘
         self.tray_icon = QSystemTrayIcon(self._create_tray_icon(), self.app)
@@ -208,6 +218,7 @@ class TrayApplication:
         if len(display) > 80:
             display = display[:77] + "..."
         logger.info("[Real Notification] %s", display)
+        self._engine.record_notification(app_name)
         result = self.persona.rewrite(display)
         if result is not None:
             self._on_persona_rewritten(result or display)
@@ -220,8 +231,26 @@ class TrayApplication:
             # the original via the sync return path.
             return
         self.tts.speak(spoken)
+        self._engine.record_tts_speak()
         self.widget.enqueue_notification(spoken)
         self._show_widget()
+
+    def _on_achievement_unlocked(self, achievement_id: str) -> None:
+        achievement = next((a for a in ACHIEVEMENTS if a.id == achievement_id), None)
+        if achievement is None:
+            return
+        if achievement.unlock_preset_key:
+            self.cfg.unlocked_presets.add(achievement.unlock_preset_key)
+        try:
+            save_config(self.cfg)
+        except Exception as e:
+            logger.warning("Failed to persist achievement unlock: %s", e)
+        name = tr(achievement.name_i18n_key, self.language)
+        self._toast_manager.show_toast(
+            title=tr("achievement.unlocked.title", self.language),
+            description=name,
+            icon=achievement.icon or "🏆",
+        )
 
     def _on_plane_clicked(self) -> None:
         """Cycle the active plane preset (airplane → rocket → ufo → bird → airplane).
@@ -245,6 +274,7 @@ class TrayApplication:
         except Exception as e:
             logger.warning("Failed to persist preset change: %s", e)
         self._apply_preset_to_widget(new_key, "")
+        self._engine.record_preset_used(new_key)
         preset = get_preset(new_key)
         self.tts.set_voice(preset.tts_voice_id, preset.tts_speed, preset.tts_pitch)
         self.persona.set_config(
@@ -332,6 +362,7 @@ class TrayApplication:
             cfg.plane_preset_params_json = params_json
             save_config(cfg)
             self._apply_preset_to_widget(preset_key, params_json)
+            self._engine.record_preset_used(preset_key)
 
     def _apply_preset_to_widget(self, preset_key: str, params_json: str) -> None:
         import dataclasses

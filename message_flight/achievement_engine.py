@@ -60,6 +60,10 @@ class AchievementEngine(QObject):
             self._cfg.presets_used.add(key)
         self._evaluate()
 
+    def check_time_based(self) -> None:
+        """Re-evaluate achievements that depend on the current time."""
+        self._evaluate()
+
     def _evaluate(self) -> None:
         hour = datetime.now().hour
         state_for: dict[str, dict[str, Any]] = {

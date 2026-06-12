@@ -423,7 +423,7 @@ def test_on_plane_clicked_clears_custom_params():
 
 
 def test_tray_app_connects_banner_clicked_signal():
-    """The TrayApplication must wire plane.clicked so click cycles preset."""
+    """The TrayApplication must wire plane.clicked so click cycles preset and records engine event."""
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -436,5 +436,112 @@ def test_tray_app_connects_banner_clicked_signal():
          patch("message_flight.tray_app.TTSManager"):
         app = TrayApplication()
         # widget.plane is a MagicMock (FlightWidget is mocked)
-        # Verify the .clicked signal of the banner was connected to a slot
-        app.widget.plane.clicked.connect.assert_called_once_with(app._on_plane_clicked)
+        # Verify both handlers are connected to the clicked signal
+        app.widget.plane.clicked.connect.assert_any_call(app._on_plane_clicked)
+        app.widget.plane.clicked.connect.assert_any_call(app._engine.record_plane_click)
+
+
+# ---------------------------------------------------------------------------
+# Task 17: gamification engine wiring
+# ---------------------------------------------------------------------------
+
+
+def test_tray_app_creates_achievement_engine():
+    """TrayApplication must construct an AchievementEngine and ToastManager."""
+    from message_flight.achievement_engine import AchievementEngine
+    from message_flight.toast import ToastManager
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+
+    assert isinstance(app._engine, AchievementEngine)
+    assert isinstance(app._toast_manager, ToastManager)
+
+
+def test_achievement_unlocked_adds_preset_and_shows_toast():
+    """Unlocking an achievement must persist the reward preset and show a toast."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.ToastManager") as mock_toast_cls, \
+         patch("message_flight.tray_app.save_config"):
+        mock_toast = MagicMock()
+        mock_toast_cls.return_value = mock_toast
+        app = TrayApplication()
+        app.cfg = AppConfig()
+
+        app._engine.unlocked.emit("first_flight")
+
+        assert "sleigh" in app.cfg.unlocked_presets
+        mock_toast.show_toast.assert_called_once()
+        call_kwargs = mock_toast.show_toast.call_args.kwargs
+        assert call_kwargs["icon"] == "🎅"
+        assert call_kwargs["description"] == "首飞"
+
+
+def test_plane_click_records_engine_event():
+    """Clicking the plane must record a plane_click event in the engine."""
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.AchievementEngine") as mock_engine_cls:
+        mock_engine = MagicMock()
+        mock_engine_cls.return_value = mock_engine
+        app = TrayApplication()
+
+        # Simulate the signal firing by invoking the slots connected to clicked
+        connected_slots = [call.args[0] for call in app.widget.plane.clicked.connect.call_args_list]
+        for slot in connected_slots:
+            slot()
+
+        mock_engine.record_plane_click.assert_called_once()
+
+
+def test_preset_change_records_engine_event():
+    """Cycling to a new preset must record the preset usage in the engine."""
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.AchievementEngine") as mock_engine_cls, \
+         patch("message_flight.tray_app.save_config"), \
+         patch("message_flight.tray_app.TrayApplication._apply_preset_to_widget"):
+        mock_engine = MagicMock()
+        mock_engine_cls.return_value = mock_engine
+        app = TrayApplication()
+        app.cfg = AppConfig(plane_preset_key="airplane", plane_preset_params_json="")
+        app.persona = MagicMock()
+
+        app._on_plane_clicked()
+
+        mock_engine.record_preset_used.assert_called_once_with("rocket")

@@ -35,9 +35,10 @@ class _AudioWorker(QObject):
 
     frame_received = pyqtSignal(object, int)
 
-    def __init__(self, model, debounce_seconds: float = 1.0):
+    def __init__(self, model, threshold: float = 0.5, debounce_seconds: float = 1.0):
         super().__init__()
         self._model = model
+        self._threshold = threshold
         self._debounce_seconds = debounce_seconds
         self._last_detect_at: float = 0.0
         self._paused = False
@@ -55,7 +56,7 @@ class _AudioWorker(QObject):
             return
 
         for _label, score in predictions.items():
-            if score >= 0.5:
+            if score >= self._threshold:
                 now = time.monotonic()
                 if now - self._last_detect_at < self._debounce_seconds:
                     return
@@ -98,7 +99,7 @@ class OpenWakeWordListener(QObject):
             logger.error("OpenWakeWordListener: failed to load model %r: %s", model_name, e)
             raise WakeWordInitError(f"failed to load model {model_name!r}: {e}") from e
 
-        self._worker = _AudioWorker(self._model, debounce_seconds=debounce_seconds)
+        self._worker = _AudioWorker(self._model, threshold=sensitivity, debounce_seconds=debounce_seconds)
         self._worker.frame_received.connect(self._on_frame_received)
 
         self._stream: Optional[Any] = None
@@ -116,6 +117,9 @@ class OpenWakeWordListener(QObject):
     def start(self) -> None:
         if self._is_running:
             return
+        self._is_paused = False
+        if self._worker is not None:  # always true, but defensive
+            self._worker.set_paused(False)
         try:
             import sounddevice as sd  # type: ignore[import-untyped]
 

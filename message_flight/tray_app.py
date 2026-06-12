@@ -197,6 +197,7 @@ class TrayApplication:
             self._show_widget()
 
     def _on_real_notification(self, app_name: str, text: str) -> None:
+        """收到真实系统通知（受 DND 控制；演示通知不受影响）"""
         if is_dnd_active(self.cfg):
             logger.info("[DND] Suppressed real notification from %s", app_name)
             return
@@ -206,10 +207,15 @@ class TrayApplication:
         logger.info("[Real Notification] %s", display)
         result = self.persona.rewrite(display)
         if result is not None:
-            self._on_persona_rewritten(display, result)
+            self._on_persona_rewritten(result or display)
 
-    def _on_persona_rewritten(self, original: str, rewritten: str) -> None:
-        spoken = rewritten or original
+    def _on_persona_rewritten(self, rewritten: str) -> None:
+        spoken = rewritten
+        if not spoken:
+            # The signal may not fire on sync short-circuit, but if it does
+            # carry empty content, fall through silently. TTS already spoke
+            # the original via the sync return path.
+            return
         self.tts.speak(spoken)
         self.widget.enqueue_notification(spoken)
         self._show_widget()

@@ -50,6 +50,17 @@ def test_rewrite_returns_original_when_message_empty():
     assert rw.rewrite("") == ""
 
 
+def test_rewrite_does_not_emit_signal_on_sync_short_circuit(qtbot):
+    """Sync short-circuit returns the original text directly; the caller
+    drives TTS via the return value. The signal must NOT fire on this
+    path, otherwise the caller would double-process the message.
+    """
+    rw = PersonaRewriter(api_key="abc", preset_key="airplane", system_prompt="x", enabled=False)
+    with qtbot.waitSignal(rw.rewrite_finished, timeout=200, raising=False) as blocker:
+        rw.rewrite("[WeChat] hi")
+    assert not blocker.signal_triggered
+
+
 def test_rewrite_sends_payload_and_emits_rewritten_text(monkeypatch):
     rw = PersonaRewriter(api_key="abc", preset_key="airplane", system_prompt="you are X", enabled=True)
     captured = {}

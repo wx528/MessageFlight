@@ -230,6 +230,10 @@ def test_real_notification_synchronous_fallback_when_rewrite_returns_string():
 
 
 def test_on_persona_rewritten_falls_back_to_original_on_empty():
+    """When the async path somehow fires the slot with empty content, the
+    slot must NOT call TTS. The original-fallback is the caller's job (it
+    passes ``result or display`` to the slot from the sync return value).
+    """
     from message_flight.config import AppConfig
     from message_flight.tray_app import TrayApplication
 
@@ -243,9 +247,9 @@ def test_on_persona_rewritten_falls_back_to_original_on_empty():
          patch("message_flight.tray_app.TTSManager"):
         app = TrayApplication()
         app.cfg = AppConfig(dnd_enabled=False, plane_preset_key="airplane")
-        app._on_persona_rewritten("[WeChat] hi", "")
-        app.tts.speak.assert_called_once_with("[WeChat] hi")
-        app.widget.enqueue_notification.assert_called_once_with("[WeChat] hi")
+        app._on_persona_rewritten("")
+        app.tts.speak.assert_not_called()
+        app.widget.enqueue_notification.assert_not_called()
 
 
 def test_tray_app_initializes_persona_rewriter():

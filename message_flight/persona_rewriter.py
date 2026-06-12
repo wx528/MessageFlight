@@ -66,7 +66,6 @@ class PersonaRewriter(QObject):
         arrives via :signal:`rewrite_finished`.
         """
         if not self._enabled or not self._api_key or not self._system_prompt or not message:
-            self.rewrite_finished.emit(message)
             return message
 
         request = QNetworkRequest(QUrl(self._ENDPOINT))

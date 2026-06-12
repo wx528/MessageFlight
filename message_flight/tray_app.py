@@ -272,6 +272,9 @@ class TrayApplication:
         dlg = SettingsDialog(load_config(), self.menu)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             new_cfg = dlg.get_result()
+            persona_enabled, persona_prompts_json = dlg.get_persona_result()
+            new_cfg.persona_enabled = persona_enabled
+            new_cfg.persona_prompts_json = persona_prompts_json
             save_config(new_cfg)
             self.cfg = new_cfg
             self.language = new_cfg.language
@@ -279,6 +282,12 @@ class TrayApplication:
             self.widget.plane.update_colors(**new_cfg.colors)
             self.widget.set_flight_kwargs(**new_cfg.flight_kwargs)
             self.tts.update_config(new_cfg)
+            self.persona.set_config(
+                api_key=new_cfg.minimax_subscription_key,
+                preset_key=new_cfg.plane_preset_key,
+                system_prompt=self._persona_prompt_for(new_cfg.plane_preset_key),
+                enabled=new_cfg.persona_enabled,
+            )
 
     def _open_preset_editor(self):
         cfg = load_config()

@@ -1,4 +1,5 @@
 """Tests for the SettingsDialog (Task 05) + flight mode row (Task 06)."""
+import json
 import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -149,3 +150,66 @@ def test_settings_dialog_returns_minimax_config(qapp):
     result = dlg.get_result()
     assert result.tts_provider == "minimax"
     assert result.minimax_subscription_key == "my-api-key"
+
+
+def test_settings_dialog_exposes_persona_widgets(qapp):
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig()
+    dlg = SettingsDialog(cfg)
+    assert hasattr(dlg, "_persona_enabled_checkbox")
+    assert hasattr(dlg, "_persona_preset_combo")
+    assert hasattr(dlg, "_persona_prompt_edit")
+    assert hasattr(dlg, "_persona_prompts")
+
+
+def test_settings_dialog_loads_persona_state_from_config(qapp):
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig(
+        persona_enabled=False,
+        persona_prompts_json=json.dumps({"airplane": "you are captain X"}),
+    )
+    dlg = SettingsDialog(cfg)
+    assert dlg._persona_enabled_checkbox.isChecked() is False
+    assert dlg._persona_prompt_edit.toPlainText() == "you are captain X"
+
+
+def test_settings_dialog_get_persona_result_returns_edited_prompt(qapp):
+    from message_flight.config import AppConfig
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig()
+    dlg = SettingsDialog(cfg)
+    dlg._persona_enabled_checkbox.setChecked(True)
+    dlg._persona_prompt_edit.setPlainText("edited prompt for airplane")
+    dlg._persona_preset_combo.setCurrentText("airplane")
+    enabled, prompts_json = dlg.get_persona_result()
+    assert enabled is True
+    prompts = json.loads(prompts_json)
+    assert prompts["airplane"] == "edited prompt for airplane"
+
+
+def test_settings_dialog_reset_button_restores_default_prompt(qapp):
+    from message_flight.config import AppConfig
+    from message_flight.plane_presets import get_preset
+    from message_flight.settings_dialog import SettingsDialog
+
+    cfg = AppConfig()
+    dlg = SettingsDialog(cfg)
+    dlg._persona_preset_combo.setCurrentText("airplane")
+    dlg._persona_prompt_edit.setPlainText("garbage")
+    dlg._on_reset_persona_prompt()
+    assert dlg._persona_prompt_edit.toPlainText() == get_preset("airplane").system_prompt
+    assert "airplane" not in dlg._persona_prompts
+
+
+def test_settings_dialog_i18n_has_persona_keys(qapp):
+    from message_flight.i18n import _TRANSLATIONS
+    for lang in ("zh", "en", "ja", "ko", "id", "th", "vi", "ms"):
+        assert "settings.persona.enable" in _TRANSLATIONS[lang]
+        assert "settings.persona.preset" in _TRANSLATIONS[lang]
+        assert "settings.persona.reset" in _TRANSLATIONS[lang]
+        assert "settings.persona.prompt_placeholder" in _TRANSLATIONS[lang]

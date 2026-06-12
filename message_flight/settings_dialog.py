@@ -5,6 +5,7 @@ from typing import Optional
 
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -26,6 +28,7 @@ from message_flight.config import (
     AppConfig,
 )
 from message_flight.i18n import LANGUAGES, language_name, tr
+from message_flight.plane_presets import list_presets
 
 _COLOR_KEYS: tuple[str, ...] = (
     "plane_color",
@@ -112,6 +115,36 @@ class SettingsDialog(QDialog):
             preset_row.addWidget(btn)
         preset_row.addStretch(1)
         root.addLayout(preset_row)
+
+        # Persona section (AI rewriter toggle + per-preset prompt)
+        persona_box = QVBoxLayout()
+        self._persona_enabled_checkbox = QCheckBox(tr("settings.persona.enable", self._language))
+        self._persona_enabled_checkbox.setChecked(initial.persona_enabled)
+        persona_box.addWidget(self._persona_enabled_checkbox)
+
+        preset_picker_row = QHBoxLayout()
+        preset_picker_row.addWidget(QLabel(tr("settings.persona.preset", self._language)))
+        self._persona_preset_combo = QComboBox()
+        for key, name, _icon in list_presets():
+            self._persona_preset_combo.addItem(f"{name} ({key})", key)
+        self._persona_preset_combo.setCurrentText("airplane")
+        self._persona_preset_combo.currentIndexChanged.connect(self._on_persona_preset_changed)
+        preset_picker_row.addWidget(self._persona_preset_combo)
+
+        reset_btn = QPushButton(tr("settings.persona.reset", self._language))
+        reset_btn.clicked.connect(self._on_reset_persona_prompt)
+        preset_picker_row.addWidget(reset_btn)
+        preset_picker_row.addStretch(1)
+        persona_box.addLayout(preset_picker_row)
+
+        self._persona_prompt_edit = QPlainTextEdit()
+        self._persona_prompt_edit.setPlaceholderText(tr("settings.persona.prompt_placeholder", self._language))
+        self._persona_prompt_edit.setFixedHeight(120)
+        persona_box.addWidget(self._persona_prompt_edit)
+
+        self._persona_prompts: dict[str, str] = self._parse_persona_prompts(initial.persona_prompts_json)
+        self._on_persona_preset_changed()
+        root.addLayout(persona_box)
 
         # 9 color rows
         form = QFormLayout()
@@ -264,3 +297,39 @@ class SettingsDialog(QDialog):
             return
         self._current_flight_mode = mode_name
         self._current_flight_kwargs = dict(FLIGHT_MODES[mode_name])
+
+    @staticmethod
+    def _parse_persona_prompts(raw: str) -> dict[str, str]:
+        import json
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {str(k): str(v) for k, v in data.items()}
+
+    def _on_persona_preset_changed(self) -> None:
+        current_key = self._persona_preset_combo.currentData()
+        if not current_key:
+            return
+        from message_flight.plane_presets import get_preset
+        existing = self._persona_prompts.get(current_key, "")
+        self._persona_prompt_edit.setPlainText(existing or get_preset(current_key).system_prompt)
+
+    def _on_reset_persona_prompt(self) -> None:
+        from message_flight.plane_presets import get_preset
+        current_key = self._persona_preset_combo.currentData() or "airplane"
+        self._persona_prompts.pop(current_key, None)
+        self._persona_prompt_edit.setPlainText(get_preset(current_key).system_prompt)
+
+    def get_persona_result(self) -> tuple[bool, str]:
+        # Snapshot the current edit into the in-memory dict
+        current_key = self._persona_preset_combo.currentData() or "airplane"
+        edited = self._persona_prompt_edit.toPlainText()
+        if edited:
+            self._persona_prompts[current_key] = edited
+        import json
+        return self._persona_enabled_checkbox.isChecked(), json.dumps(self._persona_prompts, ensure_ascii=False)

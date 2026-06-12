@@ -34,6 +34,7 @@ class _AudioWorker(QObject):
     """QObject that processes mic frames via the wake-word model."""
 
     frame_received = pyqtSignal(object, int)
+    audio_frame = pyqtSignal(object)
 
     def __init__(self, model, threshold: float = 0.5, debounce_seconds: float = 1.0):
         super().__init__()
@@ -47,6 +48,8 @@ class _AudioWorker(QObject):
         self._paused = paused
 
     def process_frame(self, indata, frames: int, _time, _status) -> None:
+        self.audio_frame.emit(bytes(indata))
+
         if self._paused:
             return
         try:
@@ -71,10 +74,15 @@ class OpenWakeWordListener(QObject):
     Signals:
         wake_word_detected: Emitted when the wake word fires.
         error_occurred(message): Emitted on mic or model errors.
+        audio_frame(bytes): Emitted every ~80ms with raw int16 PCM
+            (1280 samples = 2560 bytes). Continues to fire even while
+            the listener is paused so downstream STT consumers can buffer
+            the user's command audio.
     """
 
     wake_word_detected = pyqtSignal()
     error_occurred = pyqtSignal(str)
+    audio_frame = pyqtSignal(object)
 
     def __init__(
         self,
@@ -101,6 +109,7 @@ class OpenWakeWordListener(QObject):
 
         self._worker = _AudioWorker(self._model, threshold=sensitivity, debounce_seconds=debounce_seconds)
         self._worker.frame_received.connect(self._on_frame_received)
+        self._worker.audio_frame.connect(self.audio_frame)
 
         self._stream: Optional[Any] = None
         self._is_running = False

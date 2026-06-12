@@ -162,3 +162,45 @@ def test_stop_closes_mic_stream(qapp) -> None:
         assert listener.is_running is False
         mock_stream.stop.assert_called()
         mock_stream.close.assert_called()
+
+
+def test_audio_frame_signal_emits_during_pause(qapp) -> None:
+    """Audio frames must keep flowing even while the listener is paused.
+
+    Regression test for the bug where STTManager.LISTENING_FOR_COMMAND state
+    paused the listener, which stopped emitting any audio at all - so the
+    user's spoken command never reached the STT buffer.
+    """
+    from message_flight.wake_word import OpenWakeWordListener
+
+    class _FakeIndata:
+        def __bytes__(self) -> bytes:
+            return b"\x00" * 2560
+
+        def flatten(self) -> "_FakeIndata":
+            return self
+
+    with patch("openwakeword.model.Model") as mock_model_cls, \
+         patch("sounddevice.InputStream") as mock_stream_cls:
+        mock_model = MagicMock()
+        mock_model.predict.return_value = {}
+        mock_model_cls.return_value = mock_model
+
+        listener = OpenWakeWordListener()
+        audio_chunks: list = []
+        wake_word_hits: list = []
+        listener.audio_frame.connect(lambda data: audio_chunks.append(data))
+        listener.wake_word_detected.connect(lambda: wake_word_hits.append(True))
+
+        listener.start()
+        listener.pause()
+
+        callback = mock_stream_cls.call_args.kwargs["callback"]
+        callback(_FakeIndata(), 1280, None, None)
+        callback(_FakeIndata(), 1280, None, None)
+
+        assert len(audio_chunks) == 2
+        assert audio_chunks[0] == b"\x00" * 2560
+        assert wake_word_hits == []
+
+        listener.stop()

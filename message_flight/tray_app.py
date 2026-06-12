@@ -166,6 +166,10 @@ class TrayApplication:
         self._stt_manager.command_recognized.connect(self._on_voice_command)
         self._stt_manager.transcript_failed.connect(self._on_voice_transcript_failed)
         self._stt_manager.listening_started.connect(self._on_voice_listening_started)
+        if self._stt_manager._listener is not None:
+            self._stt_manager._listener.audio_frame.connect(
+                self._stt_manager._on_audio_chunk
+            )
         self._stt_manager.start()
 
     def _on_voice_state_changed(self, state: str) -> None:

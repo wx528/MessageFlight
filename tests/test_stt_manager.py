@@ -221,3 +221,68 @@ def test_listener_error_returns_to_idle(qapp) -> None:
     # Manually fire the return-to-idle timer by calling _return_to_idle directly
     mgr._return_to_idle()
     assert mgr.state.value == "idle"
+
+
+def test_audio_frames_flow_from_listener_to_stt_manager(qapp) -> None:
+    """End-to-end: listener.audio_frame must reach STTManager._on_audio_chunk.
+
+    Regression test for the production wiring bug where the listener was
+    paused during LISTENING_FOR_COMMAND but no audio frames were forwarded
+    to STTManager, so every command timed out with an empty buffer.
+
+    This mirrors what tray_app._init_stt_manager wires in production.
+    """
+    from PyQt6.QtCore import QObject, pyqtSignal
+
+    from message_flight.stt_manager import STTManager
+
+    class _FakeListener(QObject):
+        wake_word_detected = pyqtSignal()
+        error_occurred = pyqtSignal(str)
+        audio_frame = pyqtSignal(object)
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.started = False
+            self.paused = False
+
+        def start(self) -> None:
+            self.started = True
+
+        def pause(self) -> None:
+            self.paused = True
+
+        def resume(self) -> None:
+            self.paused = False
+
+        def stop(self) -> None:
+            self.started = False
+
+    cfg = AppConfig(stt_enabled=True)
+    listener = _FakeListener()
+    stt = MagicMock()
+    stt.transcribed = MagicMock()
+    stt.error_occurred = MagicMock()
+
+    mgr = STTManager(cfg, listener=listener, stt=stt)
+    listener.audio_frame.connect(mgr._on_audio_chunk)
+    mgr.start()
+
+    # Frames arriving before wake word are ignored (state == IDLE)
+    silence = b"\x00\x00" * 1280
+    listener.audio_frame.emit(silence)
+    assert len(mgr._audio_buffer) == 0
+
+    # Fire wake word: enters LISTENING_FOR_COMMAND
+    listener.wake_word_detected.emit()
+    assert mgr.state.value == "listening"
+    assert listener.paused is True
+
+    # Now frames must be buffered and silence detection must drive STT
+    for _ in range(6):
+        listener.audio_frame.emit(silence)
+
+    stt.transcribe.assert_called_once()
+    audio_passed = stt.transcribe.call_args.args[0]
+    assert len(audio_passed) == 6 * 1280 * 2
+    mgr.stop()

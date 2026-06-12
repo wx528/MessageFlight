@@ -45,6 +45,14 @@ VALID_TTS_PROVIDERS = ("sapi", "minimax")
 PERSONA_ENABLED_KEY = "persona_enabled"
 PERSONA_PROMPTS_JSON_KEY = "persona_prompts_json"
 
+# Gamification (v0.2.7+)
+UNLOCKED_PRESETS_KEY = "unlocked_presets"
+ACHIEVEMENT_PROGRESS_KEY = "achievement_progress"
+DISTINCT_SOURCES_KEY = "distinct_notification_sources"
+PRESETS_USED_KEY = "presets_used"
+CLICKS_KEY = "clicks"
+TTS_COUNT_KEY = "tts_count"
+
 # User-facing flight paths.  ``horizontal`` is the classic left-to-right
 # sweep; ``vertical_pong`` enters from the top and bounces off the top
 # and bottom edges while drifting right.
@@ -201,6 +209,13 @@ class AppConfig:
     language: str = field(default_factory=detect_system_language)
     plane_preset_key: str = "airplane"
     plane_preset_params_json: str = ""
+    # Gamification (v0.2.7+)
+    unlocked_presets: set = field(default_factory=set)
+    achievement_progress: dict = field(default_factory=dict)
+    distinct_notification_sources: set = field(default_factory=set)
+    presets_used: set = field(default_factory=set)
+    clicks: int = 0
+    tts_count: int = 0
     # Do-Not-Disturb
     dnd_enabled: bool = False
     dnd_schedule_enabled: bool = False
@@ -319,19 +334,24 @@ minimax_subscription_key=your-subscription-key-here
         example_path.write_text(example_content, encoding="utf-8")
 
 
-def load_config() -> AppConfig:
+def load_config(settings: QSettings | None = None) -> AppConfig:
     """Read the persisted config, falling back to defaults on any failure.
 
     If the INI file is missing, corrupt, or only partially populated,
     missing keys are silently replaced with the active theme's defaults
     so the app still has a fully populated color dict to hand to the
     widget.
+
+    If ``settings`` is provided, that QSettings instance is used directly
+    (useful for tests). Otherwise a fresh QSettings is built from the
+    user-scope INI directory.
     """
-    try:
-        settings = _new_settings()
-    except Exception as e:
-        print(f"load_config: failed to open QSettings ({e!r}); using defaults", file=sys.stderr)
-        return _default_config()
+    if settings is None:
+        try:
+            settings = _new_settings()
+        except Exception as e:
+            print(f"load_config: failed to open QSettings ({e!r}); using defaults", file=sys.stderr)
+            return _default_config()
 
     try:
         theme_name = str(settings.value(SETTINGS_KEY, DEFAULT_THEME))
@@ -376,6 +396,32 @@ def load_config() -> AppConfig:
         # AI persona
         persona_enabled = _parse_bool(settings.value(PERSONA_ENABLED_KEY, True))
         persona_prompts_json = str(settings.value(PERSONA_PROMPTS_JSON_KEY, ""))
+        # Gamification (v0.2.7+)
+        unlocked_presets_raw = settings.value(UNLOCKED_PRESETS_KEY, "")
+        unlocked_presets = {s for s in str(unlocked_presets_raw).split(";") if s} if unlocked_presets_raw else set()
+
+        progress_raw = settings.value(ACHIEVEMENT_PROGRESS_KEY, "{}")
+        try:
+            achievement_progress = json.loads(str(progress_raw)) if progress_raw else {}
+            if not isinstance(achievement_progress, dict):
+                achievement_progress = {}
+        except (json.JSONDecodeError, TypeError):
+            achievement_progress = {}
+
+        sources_raw = settings.value(DISTINCT_SOURCES_KEY, "")
+        distinct_notification_sources = {s for s in str(sources_raw).split(";") if s} if sources_raw else set()
+
+        used_raw = settings.value(PRESETS_USED_KEY, "")
+        presets_used = {s for s in str(used_raw).split(";") if s} if used_raw else set()
+
+        try:
+            clicks = int(settings.value(CLICKS_KEY, 0))
+        except (TypeError, ValueError):
+            clicks = 0
+        try:
+            tts_count = int(settings.value(TTS_COUNT_KEY, 0))
+        except (TypeError, ValueError):
+            tts_count = 0
     except Exception as e:
         print(f"load_config: failed to read keys ({e!r}); using defaults", file=sys.stderr)
         return _default_config()
@@ -396,11 +442,22 @@ def load_config() -> AppConfig:
         dnd_schedule_end=dnd_schedule_end,
         persona_enabled=persona_enabled,
         persona_prompts_json=persona_prompts_json,
+        unlocked_presets=unlocked_presets,
+        achievement_progress=achievement_progress,
+        distinct_notification_sources=distinct_notification_sources,
+        presets_used=presets_used,
+        clicks=clicks,
+        tts_count=tts_count,
     )
 
 
-def save_config(cfg: AppConfig) -> None:
-    """Persist the given config to disk. Errors are logged, not raised."""
+def save_config(cfg: AppConfig, settings: QSettings | None = None) -> None:
+    """Persist the given config to disk. Errors are logged, not raised.
+
+    If ``settings`` is provided, that QSettings instance is used directly
+    (useful for tests). Otherwise a fresh QSettings is built from the
+    user-scope INI directory.
+    """
     try:
         # Validate the flight_kwargs before persisting; on failure, fall
         # back to the active mode's default kwargs so a corrupt save
@@ -413,7 +470,8 @@ def save_config(cfg: AppConfig) -> None:
             mode = FLIGHT_MODES.get(cfg.flight_mode, FLIGHT_MODES[DEFAULT_FLIGHT_MODE])
             flight_kwargs_to_save = dict(mode)
 
-        settings = _new_settings()
+        if settings is None:
+            settings = _new_settings()
         settings.setValue(SETTINGS_KEY, cfg.theme_name)
         for key, value in cfg.colors.items():
             settings.setValue(key, value)
@@ -430,6 +488,12 @@ def save_config(cfg: AppConfig) -> None:
         settings.setValue(DND_SCHEDULE_END_KEY, cfg.dnd_schedule_end)
         settings.setValue(PERSONA_ENABLED_KEY, cfg.persona_enabled)
         settings.setValue(PERSONA_PROMPTS_JSON_KEY, cfg.persona_prompts_json)
+        settings.setValue(UNLOCKED_PRESETS_KEY, ";".join(sorted(cfg.unlocked_presets)))
+        settings.setValue(ACHIEVEMENT_PROGRESS_KEY, json.dumps(cfg.achievement_progress))
+        settings.setValue(DISTINCT_SOURCES_KEY, ";".join(sorted(cfg.distinct_notification_sources)))
+        settings.setValue(PRESETS_USED_KEY, ";".join(sorted(cfg.presets_used)))
+        settings.setValue(CLICKS_KEY, int(cfg.clicks))
+        settings.setValue(TTS_COUNT_KEY, int(cfg.tts_count))
         settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)

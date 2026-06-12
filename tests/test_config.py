@@ -323,3 +323,30 @@ def test_save_load_persona_prompts_round_trip(isolated_settings):
     cfg.persona_prompts_json = '{"airplane":"hello"}'
     save_config(cfg)
     assert load_config().persona_prompts_json == '{"airplane":"hello"}'
+
+
+def test_app_config_new_fields_round_trip(tmp_path, monkeypatch):
+    """The 6 new gamification fields must round-trip through QSettings."""
+    from PyQt6.QtCore import QSettings
+    from message_flight.config import AppConfig, load_config, save_config
+
+    monkeypatch.setenv("MESSAGEFLIGHT_CONFIG_DIR", str(tmp_path))
+    settings = QSettings(str(tmp_path / "test.ini"), QSettings.Format.IniFormat)
+
+    cfg = AppConfig()
+    cfg.unlocked_presets = {"sleigh", "duck"}
+    cfg.achievement_progress = {"clicker": 7}
+    cfg.distinct_notification_sources = {"WeChat", "Outlook"}
+    cfg.presets_used = {"airplane", "rocket", "ufo", "bird"}
+    cfg.clicks = 42
+    cfg.tts_count = 17
+
+    save_config(cfg, settings=settings)
+    loaded = load_config(settings=settings)
+
+    assert loaded.unlocked_presets == {"sleigh", "duck"}
+    assert loaded.achievement_progress == {"clicker": 7}
+    assert loaded.distinct_notification_sources == {"WeChat", "Outlook"}
+    assert loaded.presets_used == {"airplane", "rocket", "ufo", "bird"}
+    assert loaded.clicks == 42
+    assert loaded.tts_count == 17

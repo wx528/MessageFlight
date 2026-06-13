@@ -25,7 +25,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from message_flight.config import AppConfig
 from message_flight.stt import MiniMaxSTTReader
 from message_flight.voice_commands import parse_command
-from message_flight.wake_word import OpenWakeWordListener
+from message_flight.wake_word import OpenWakeWordListener, create_listener
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class STTManager(QObject):
 
         # Inject dependencies if provided, else create from config
         if self._listener is None and config.stt_enabled:
-            self._listener = OpenWakeWordListener(model_name=config.stt_wake_word)
+            self._listener = create_listener(wake_word_key=config.stt_wake_word)
         if self._stt is None:
             self._stt = MiniMaxSTTReader(api_key=config.minimax_subscription_key)
 

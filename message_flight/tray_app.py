@@ -148,6 +148,9 @@ class TrayApplication:
 
     def _init_stt_manager(self) -> None:
         """Construct STTManager + tray icons; wire signals. Logs + disables on failure."""
+        if self._stt_manager is not None:
+            logger.debug("TrayApplication: STTManager already constructed; skipping")
+            return
         if not self.cfg.stt_enabled:
             return
         try:
@@ -492,7 +495,10 @@ class TrayApplication:
             elif voice_was_enabled and not voice_now_enabled:
                 logger.info("TrayApplication: voice input disabled, tearing down STTManager")
                 if self._stt_manager is not None:
-                    self._stt_manager.stop()
+                    try:
+                        self._stt_manager.stop()
+                    except Exception as e:
+                        logger.warning("TrayApplication: STTManager.stop() raised: %s", e)
                     self._stt_manager = None
 
     def _open_preset_editor(self):

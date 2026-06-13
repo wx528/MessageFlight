@@ -516,8 +516,9 @@ def test_tray_app_creates_achievement_engine():
 
     assert isinstance(app._engine, AchievementEngine)
     # _toast_manager is a MagicMock (from the factory we patched) so we
-    # can't isinstance-check it against ToastManager anymore. The factory
-    # call above is the real assertion.
+    # can't isinstance-check it against ToastManager anymore. Verify it
+    # was constructed and is the type the factory returns.
+    assert isinstance(app._toast_manager, MagicMock)
 
 
 def test_achievement_unlocked_adds_preset_and_shows_toast():
@@ -856,3 +857,80 @@ def test_voice_transcript_failed_shows_appropriate_toast():
         app._toast_manager.show_toast.reset_mock()
         app._on_voice_transcript_failed("unknown")
         app._toast_manager.show_toast.assert_not_called()
+
+
+def test_open_settings_enables_voice_constructs_stt_manager():
+    """Enabling voice in the settings dialog must construct STTManager
+    without restarting the app."""
+    from unittest.mock import MagicMock, patch
+
+    from PyQt6.QtWidgets import QDialog
+
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        app = TrayApplication()
+        assert app._stt_manager is None
+
+        # Simulate settings dialog returning a cfg with voice enabled
+        new_cfg = AppConfig(stt_enabled=True)
+        mock_dlg = MagicMock()
+        mock_dlg.exec.return_value = QDialog.DialogCode.Accepted
+        mock_dlg.get_result.return_value = new_cfg
+        mock_dlg.get_persona_result.return_value = (False, "")
+
+        with patch("message_flight.tray_app.SettingsDialog", return_value=mock_dlg), \
+             patch("message_flight.tray_app.save_config"), \
+             patch("message_flight.tray_app.STTManager") as mock_stt_cls:
+            mock_stt_instance = MagicMock()
+            mock_stt_cls.return_value = mock_stt_instance
+            app._open_settings()
+
+        mock_stt_cls.assert_called_once_with(new_cfg)
+        assert app._stt_manager is mock_stt_instance
+
+
+def test_open_settings_disables_voice_teardown_stt_manager():
+    """Disabling voice in the settings dialog must stop and remove STTManager."""
+    from unittest.mock import MagicMock, patch
+
+    from PyQt6.QtWidgets import QDialog
+
+    from message_flight.config import AppConfig
+    from message_flight.tray_app import TrayApplication
+
+    with patch("message_flight.tray_app.QApplication"), \
+         patch("message_flight.tray_app.QSystemTrayIcon"), \
+         patch("message_flight.tray_app.FlightWidget"), \
+         patch("message_flight.tray_app.QMenu"), \
+         patch("message_flight.tray_app.QAction"), \
+         patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
+         patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
+         patch("message_flight.tray_app.TTSManager"):
+        # Start with voice enabled and a mock STTManager
+        app = TrayApplication()
+        mock_stt = MagicMock()
+        app._stt_manager = mock_stt
+        app.cfg.stt_enabled = True
+
+        # Simulate settings dialog returning a cfg with voice disabled
+        new_cfg = AppConfig(stt_enabled=False)
+        mock_dlg = MagicMock()
+        mock_dlg.exec.return_value = QDialog.DialogCode.Accepted
+        mock_dlg.get_result.return_value = new_cfg
+        mock_dlg.get_persona_result.return_value = (False, "")
+
+        with patch("message_flight.tray_app.SettingsDialog", return_value=mock_dlg), \
+             patch("message_flight.tray_app.save_config"):
+            app._open_settings()
+
+        mock_stt.stop.assert_called_once()
+        assert app._stt_manager is None

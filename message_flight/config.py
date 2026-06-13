@@ -470,7 +470,11 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
         persona_prompts_json = str(settings.value(PERSONA_PROMPTS_JSON_KEY, ""))
         # Voice input
         stt_enabled = _parse_bool(settings.value(STT_ENABLED_KEY, False))
-        stt_wake_word = str(settings.value(STT_WAKE_WORD_KEY, "hey_jarvis"))
+        # Default wake word based on system language for first-time users
+        if settings.contains(STT_WAKE_WORD_KEY):
+            stt_wake_word = str(settings.value(STT_WAKE_WORD_KEY))
+        else:
+            stt_wake_word = "ni_hao_xiao_zhi" if language.startswith("zh") else "hey_jarvis"
 
         return AppConfig(
             theme_name=theme_name,

@@ -28,7 +28,8 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from PyQt6.QtCore import QObject, QStandardPaths, pyqtSignal
+import numpy as np
+from PyQt6.QtCore import QObject, QStandardPaths, QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +63,6 @@ SHERPA_WAKE_WORDS: dict[str, dict[str, str]] = {
         "label_en": "Xiao Fei Xiao Fei",
         "pinyin": "x iǎo f ēi x iǎo f ēi",
     },
-    "ni_hao": {
-        "label_zh": "你好",
-        "label_en": "Ni Hao",
-        "pinyin": "n ǐ h ǎo",
-    },
     "xiao_ai_tong_xue": {
         "label_zh": "小爱同学",
         "label_en": "Xiao Ai Tong Xue",
@@ -99,6 +95,16 @@ def _get_wake_word_cache_dir() -> Path:
     d = Path(cache_root) / "MessageFlight" / "wakewords"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _is_sherpa_model_cached() -> bool:
+    """Return True if the sherpa-onnx model is already in the local cache."""
+    cache_dir = _get_wake_word_cache_dir()
+    model_dir = cache_dir / SHERPA_MODEL_DIR_NAME
+    required_files = ["tokens.txt", "encoder-epoch-13-avg-2-chunk-16-left-64.onnx",
+                      "decoder-epoch-13-avg-2-chunk-16-left-64.onnx",
+                      "joiner-epoch-13-avg-2-chunk-16-left-64.onnx"]
+    return all((model_dir / f).exists() for f in required_files)
 
 
 def _ensure_sherpa_model() -> Path:
@@ -338,6 +344,20 @@ class OpenWakeWordListener(QObject):
 # ---------------------------------------------------------------------------
 
 
+class _ModelDownloadThread(QThread):
+    """Background thread to download the sherpa-onnx model."""
+
+    finished_signal = pyqtSignal()
+    error_signal = pyqtSignal(str)
+
+    def run(self) -> None:
+        try:
+            _ensure_sherpa_model()
+            self.finished_signal.emit()
+        except Exception as e:
+            self.error_signal.emit(f"Model download failed: {e}")
+
+
 class _SherpaAudioWorker(QObject):
     """QObject that processes mic frames via the sherpa-onnx KWS model."""
 
@@ -361,8 +381,6 @@ class _SherpaAudioWorker(QObject):
         if self._paused:
             return
         try:
-            import numpy as np
-
             samples = indata.flatten().astype(np.float32) / 32768.0
             self._kws.accept_waveform(self._stream, samples)
             result = self._kws.get_result(self._stream)
@@ -371,9 +389,18 @@ class _SherpaAudioWorker(QObject):
                 if now - self._last_detect_at < self._debounce_seconds:
                     return
                 self._last_detect_at = now
+                # Reset stream after detection to avoid stale state
+                self._kws.reset_stream(self._stream)
                 self.frame_received.emit()
         except Exception as e:
             logger.debug("sherpa-onnx KWS predict error: %s", e)
+
+    def reset_stream(self) -> None:
+        """Reset the sherpa-onnx stream to clear accumulated state."""
+        try:
+            self._kws.reset_stream(self._stream)
+        except Exception:
+            pass
 
 
 class SherpaOnnxListener(QObject):
@@ -382,15 +409,22 @@ class SherpaOnnxListener(QObject):
     Uses the zipformer transducer KWS model with pinyin-based keyword
     spotting. No training needed — keywords are defined in a text file.
 
+    If the model is not cached locally, it will be downloaded in a
+    background thread. The ``model_ready`` signal is emitted when the
+    model is loaded and the listener can be started. If the download
+    fails, ``error_occurred`` is emitted instead.
+
     Signals:
         wake_word_detected: Emitted when the wake word fires.
         error_occurred(message): Emitted on mic or model errors.
         audio_frame(bytes): Emitted every ~80ms with raw int16 PCM.
+        model_ready(): Emitted when the model is loaded and ready.
     """
 
     wake_word_detected = pyqtSignal()
     error_occurred = pyqtSignal(str)
     audio_frame = pyqtSignal(object)
+    model_ready = pyqtSignal()
 
     def __init__(
         self,
@@ -401,21 +435,35 @@ class SherpaOnnxListener(QObject):
     ) -> None:
         super().__init__(parent)
         self._wake_word_key = wake_word_key
+        self._sensitivity = sensitivity
         self._debounce_seconds = debounce_seconds
+        self._kws: Any = None
+        self._stream: Any = None
+        self._worker: Optional[_SherpaAudioWorker] = None
+        self._sd_stream: Optional[Any] = None
+        self._is_running = False
+        self._is_paused = False
 
+        if _is_sherpa_model_cached():
+            # Model already cached — load synchronously (fast)
+            self._load_model()
+        else:
+            # Model not cached — download in background thread
+            logger.info("SherpaOnnxListener: model not cached, starting background download")
+            self._download_thread = _ModelDownloadThread(self)
+            self._download_thread.finished_signal.connect(self._on_model_downloaded)
+            self._download_thread.error_signal.connect(self._on_model_download_error)
+            self._download_thread.start()
+
+    def _load_model(self) -> None:
+        """Load the sherpa-onnx KWS model and create the audio worker."""
         try:
             import sherpa_onnx  # type: ignore[import-untyped]
 
-            # Download model if needed
             model_dir = _ensure_sherpa_model()
+            keywords_path = _build_sherpa_keywords_file(self._wake_word_key, model_dir)
 
-            # Build keywords file
-            keywords_path = _build_sherpa_keywords_file(wake_word_key, model_dir)
-
-            # Map sensitivity (0-1) to keywords_threshold.
-            # sherpa-onnx threshold is typically 0.1-0.5; higher = less sensitive.
-            # We invert: high sensitivity → low threshold
-            threshold = max(0.1, 0.5 - sensitivity * 0.4)
+            threshold = max(0.1, 0.5 - self._sensitivity * 0.4)
 
             self._kws = sherpa_onnx.KeywordSpotter(
                 tokens=str(model_dir / "tokens.txt"),
@@ -428,23 +476,32 @@ class SherpaOnnxListener(QObject):
                 provider="cpu",
             )
             self._stream = self._kws.create_stream()
+
+            self._worker = _SherpaAudioWorker(
+                self._kws, self._stream, debounce_seconds=self._debounce_seconds,
+            )
+            self._worker.frame_received.connect(self._on_frame_received)
+            self._worker.audio_frame.connect(self.audio_frame)
+
             logger.info(
                 "SherpaOnnxListener: model loaded (keyword=%s, threshold=%.2f)",
-                wake_word_key, threshold,
+                self._wake_word_key, threshold,
             )
         except Exception as e:
-            logger.error("SherpaOnnxListener: failed to init: %s", e)
+            logger.error("SherpaOnnxListener: failed to load model: %s", e)
             raise WakeWordInitError(f"failed to init sherpa-onnx: {e}") from e
 
-        self._worker = _SherpaAudioWorker(
-            self._kws, self._stream, debounce_seconds=debounce_seconds,
-        )
-        self._worker.frame_received.connect(self._on_frame_received)
-        self._worker.audio_frame.connect(self.audio_frame)
+    def _on_model_downloaded(self) -> None:
+        """Called when the background model download completes."""
+        try:
+            self._load_model()
+            self.model_ready.emit()
+        except WakeWordInitError:
+            self.error_occurred.emit("Failed to load voice model after download")
 
-        self._sd_stream: Optional[Any] = None
-        self._is_running = False
-        self._is_paused = False
+    def _on_model_download_error(self, error_msg: str) -> None:
+        """Called when the background model download fails."""
+        self.error_occurred.emit(error_msg)
 
     @property
     def is_running(self) -> bool:
@@ -456,6 +513,11 @@ class SherpaOnnxListener(QObject):
 
     def start(self) -> None:
         if self._is_running:
+            return
+        if self._worker is None:
+            # Model not loaded yet (still downloading) — start will be
+            # called again from model_ready signal handler in STTManager.
+            logger.info("SherpaOnnxListener.start: model not ready yet, deferring")
             return
         self._is_paused = False
         self._worker.set_paused(False)
@@ -486,11 +548,15 @@ class SherpaOnnxListener(QObject):
 
     def pause(self) -> None:
         self._is_paused = True
-        self._worker.set_paused(True)
+        if self._worker is not None:
+            self._worker.set_paused(True)
 
     def resume(self) -> None:
         self._is_paused = False
-        self._worker.set_paused(False)
+        if self._worker is not None:
+            self._worker.set_paused(False)
+            # Reset stream on resume to clear state accumulated during pause
+            self._worker.reset_stream()
 
     def stop(self) -> None:
         if self._sd_stream is not None:

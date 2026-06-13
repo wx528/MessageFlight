@@ -95,6 +95,7 @@ def test_silence_detection_triggers_stt(qapp) -> None:
     mgr, listener, stt = _make_manager(qapp)
     mgr.start()
     mgr._state = mgr._state.__class__.LISTENING_FOR_COMMAND
+    mgr._skip_frames = 0  # bypass wake-word tail skip for this test
 
     # Feed 10 frames of silence (low energy) — silence threshold is 6 frames
     fake_chunk = b"\x00\x00" * 1280  # 80ms of silence
@@ -109,6 +110,7 @@ def test_audio_below_silence_threshold_does_not_trigger(qapp) -> None:
     mgr, _listener, stt = _make_manager(qapp)
     mgr.start()
     mgr._state = mgr._state.__class__.LISTENING_FOR_COMMAND
+    mgr._skip_frames = 0  # bypass wake-word tail skip for this test
 
     # Only 3 frames of silence — below 6-frame threshold
     fake_chunk = b"\x00\x00" * 1280
@@ -160,6 +162,7 @@ def test_audio_buffer_passed_to_stt(qapp) -> None:
     mgr, _listener, stt = _make_manager(qapp)
     mgr.start()
     mgr._state = mgr._state.__class__.LISTENING_FOR_COMMAND
+    mgr._skip_frames = 0  # bypass wake-word tail skip for this test
 
     fake_chunk = b"\x00\x00" * 1280
     for _ in range(6):
@@ -188,6 +191,7 @@ def test_silence_timeout_triggers_stt_with_partial_audio(qapp) -> None:
     mgr, _listener, stt = _make_manager(qapp)
     mgr.start()
     mgr._state = mgr._state.__class__.LISTENING_FOR_COMMAND
+    mgr._skip_frames = 0  # bypass wake-word tail skip for this test
 
     # Feed 2 frames (below silence threshold) — NOT enough to trigger silence detection
     fake_chunk = b"\x00\x00" * 1280
@@ -265,7 +269,6 @@ def test_audio_frames_flow_from_listener_to_stt_manager(qapp) -> None:
     stt.error_occurred = MagicMock()
 
     mgr = STTManager(cfg, listener=listener, stt=stt)  # type: ignore[arg-type]
-    listener.audio_frame.connect(mgr._on_audio_chunk)
     mgr.start()
 
     # Frames arriving before wake word are ignored (state == IDLE)
@@ -279,10 +282,12 @@ def test_audio_frames_flow_from_listener_to_stt_manager(qapp) -> None:
     assert listener.paused is True
 
     # Now frames must be buffered and silence detection must drive STT
-    for _ in range(6):
+    # 3 frames are skipped (wake word tail), then 6 silent frames trigger STT
+    for _ in range(10):
         listener.audio_frame.emit(silence)
 
     stt.transcribe.assert_called_once()
     audio_passed = stt.transcribe.call_args.args[0]
+    # 3 frames skipped (wake word tail), then 6 silent frames buffered + trigger
     assert len(audio_passed) == 6 * 1280 * 2
     mgr.stop()

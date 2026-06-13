@@ -102,9 +102,6 @@ def test_end_to_end_wake_word_then_pause_command(qapp) -> None:
     listener.start()
     mgr.start()
 
-    # Production wiring: tray_app._init_stt_manager does this; tests must too
-    listener.audio_frame.connect(mgr._on_audio_chunk)
-
     captured_commands: list[str] = []
     mgr.command_recognized.connect(captured_commands.append)
 
@@ -118,17 +115,18 @@ def test_end_to_end_wake_word_then_pause_command(qapp) -> None:
     assert listener.is_paused is True
 
     # Step 2: user speaks "暂停" — feed tone then silence to trigger STT
+    # Note: first 3 frames after wake word are skipped (wake word tail)
     for _ in range(5):
         listener.feed_audio(_tone_chunk())  # speech
-    for _ in range(7):  # > SILENCE_FRAME_COUNT=6
+    for _ in range(10):  # enough silence after 3 skipped tone frames
         listener.feed_audio(_silence_chunk())  # silence triggers finish
 
     QApplication.processEvents()
     # STT should be called with the buffered audio
     stt.transcribe.assert_called_once()
     buffered_audio = stt.transcribe.call_args.args[0]
-    # 5 tone frames + 6 silence frames (the 6th triggers the finish) = 11
-    assert len(buffered_audio) == 11 * 2560
+    # 3 tone frames skipped, then 2 tone + 6 silence frames = 8 buffered
+    assert len(buffered_audio) == 8 * 2560
 
     # Step 3: simulate ASR returning "暂停"
     audio_arg = buffered_audio
@@ -156,9 +154,6 @@ def test_end_to_end_no_match_emits_failed_signal(qapp) -> None:
     mgr = STTManager(cfg, listener=listener, stt=stt)  # type: ignore[arg-type]
     listener.start()
     mgr.start()
-
-    # Production wiring: tray_app._init_stt_manager does this; tests must too
-    listener.audio_frame.connect(mgr._on_audio_chunk)
 
     captured_failures: list[str] = []
     mgr.transcript_failed.connect(captured_failures.append)
@@ -194,9 +189,6 @@ def test_end_to_end_resume_command(qapp) -> None:
     listener.start()
     mgr.start()
 
-    # Production wiring: tray_app._init_stt_manager does this; tests must too
-    listener.audio_frame.connect(mgr._on_audio_chunk)
-
     captured: list[str] = []
     mgr.command_recognized.connect(captured.append)
 
@@ -229,9 +221,6 @@ def test_end_to_end_stt_network_error(qapp) -> None:
     listener.start()
     mgr.start()
 
-    # Production wiring: tray_app._init_stt_manager does this; tests must too
-    listener.audio_frame.connect(mgr._on_audio_chunk)
-
     captured_failures: list[str] = []
     mgr.transcript_failed.connect(captured_failures.append)
 
@@ -262,9 +251,6 @@ def test_end_to_end_audio_ignored_when_not_listening(qapp) -> None:
     mgr = STTManager(cfg, listener=listener, stt=stt)  # type: ignore[arg-type]
     listener.start()
     mgr.start()
-
-    # Production wiring: tray_app._init_stt_manager does this; tests must too
-    listener.audio_frame.connect(mgr._on_audio_chunk)
 
     # Feed audio in IDLE state — must NOT trigger STT
     for _ in range(20):

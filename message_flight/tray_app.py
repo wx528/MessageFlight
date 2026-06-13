@@ -30,6 +30,7 @@ from message_flight.stt_manager import STTManager
 from message_flight.toast import ToastManager
 from message_flight.tts_manager import TTSManager
 from message_flight.voice_commands import VoiceCommand
+from message_flight.wake_word import WakeWordInitError
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,15 @@ class TrayApplication:
 
         try:
             self._stt_manager = STTManager(self.cfg)
+        except WakeWordInitError as e:
+            logger.error("TrayApplication: wake word model init failed: %s", e)
+            self._toast_manager.show_toast(
+                title=tr("voice.init_failed", self.language),
+                description="",
+                icon="⚠️",
+            )
+            self._stt_manager = None
+            return
         except Exception as e:
             logger.error("TrayApplication: failed to create STTManager: %s", e)
             self._toast_manager.show_toast(
@@ -176,10 +186,6 @@ class TrayApplication:
         self._stt_manager.command_recognized.connect(self._on_voice_command)
         self._stt_manager.transcript_failed.connect(self._on_voice_transcript_failed)
         self._stt_manager.listening_started.connect(self._on_voice_listening_started)
-        if self._stt_manager._listener is not None:
-            self._stt_manager._listener.audio_frame.connect(
-                self._stt_manager._on_audio_chunk
-            )
         self._stt_manager.start()
 
     def _on_voice_state_changed(self, state: str) -> None:
@@ -196,20 +202,39 @@ class TrayApplication:
             return
         if cmd == VoiceCommand.PAUSE:
             self._toggle_pause(True)
+            self._toast_manager.show_toast(
+                title=tr("voice.cmd.pause", self.language), description="", icon="⏸",
+            )
         elif cmd == VoiceCommand.RESUME:
             self._toggle_pause(False)
+            self._toast_manager.show_toast(
+                title=tr("voice.cmd.resume", self.language), description="", icon="▶",
+            )
         elif cmd == VoiceCommand.NEXT_PRESET:
             self._on_plane_clicked()
+            self._toast_manager.show_toast(
+                title=tr("voice.cmd.next_preset", self.language), description="", icon="✈",
+            )
         elif cmd == VoiceCommand.TOGGLE_DND:
             new_state = not self.action_dnd.isChecked()
             self._toggle_dnd(new_state)
             self.action_dnd.setChecked(new_state)
+            key = "voice.cmd.dnd_on" if new_state else "voice.cmd.dnd_off"
+            self._toast_manager.show_toast(
+                title=tr(key, self.language), description="", icon="🔕" if new_state else "🔔",
+            )
         elif cmd == VoiceCommand.SEND_DEMO:
             self._send_demo_notification()
 
     def _on_voice_transcript_failed(self, reason: str) -> None:
         logger.info("TrayApplication: voice transcript failed: %s", reason)
-        if reason == "no_match":
+        if reason == "empty":
+            self._toast_manager.show_toast(
+                title=tr("voice.no_speech", self.language),
+                description="",
+                icon="🔇",
+            )
+        elif reason == "no_match":
             self._toast_manager.show_toast(
                 title=tr("voice.not_understood", self.language),
                 description="",
@@ -467,10 +492,15 @@ class TrayApplication:
             new_cfg.persona_enabled = persona_enabled
             new_cfg.persona_prompts_json = persona_prompts_json
 
-            # Detect voice-input toggling BEFORE swapping cfg so we can
-            # wire/unwire the STTManager accordingly.
+            # Voice input: construct on enable, tear down on disable,
+            # or rebuild if the wake word changed while staying enabled.
             voice_was_enabled = self.cfg.stt_enabled
             voice_now_enabled = new_cfg.stt_enabled
+            wake_word_changed = (
+                voice_was_enabled
+                and voice_now_enabled
+                and self.cfg.stt_wake_word != new_cfg.stt_wake_word
+            )
 
             save_config(new_cfg)
             self.cfg = new_cfg
@@ -500,6 +530,18 @@ class TrayApplication:
                     except Exception as e:
                         logger.warning("TrayApplication: STTManager.stop() raised: %s", e)
                     self._stt_manager = None
+            elif wake_word_changed:
+                logger.info(
+                    "TrayApplication: wake word changed %s -> %s, rebuilding STTManager",
+                    self.cfg.stt_wake_word, new_cfg.stt_wake_word,
+                )
+                if self._stt_manager is not None:
+                    try:
+                        self._stt_manager.stop()
+                    except Exception as e:
+                        logger.warning("TrayApplication: STTManager.stop() raised: %s", e)
+                    self._stt_manager = None
+                self._init_stt_manager()
 
     def _open_preset_editor(self):
         dlg = PresetEditorWindow(self.cfg, self.menu)

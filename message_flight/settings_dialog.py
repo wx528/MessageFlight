@@ -247,7 +247,15 @@ class SettingsDialog(QDialog):
         form.addRow(self._voice_enabled_checkbox)
         form.addRow(tr("voice.wake_word", self._language), self._voice_wake_word_combo)
         voice_layout.addLayout(form)
+        voice_layout.addWidget(QLabel(tr("voice.wake_word_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.disabled_hint", self._language)))
+
+        # Command list
+        voice_layout.addSpacing(8)
+        voice_layout.addWidget(QLabel(f"<b>{tr('voice.commands_title', self._language)}</b>"))
+        for cmd_key in ("pause", "resume", "next_preset", "toggle_dnd", "send_demo"):
+            voice_layout.addWidget(QLabel(tr(f"voice.cmd_example.{cmd_key}", self._language)))
+
         voice_layout.addStretch(1)
         self.tabs.addTab(voice_tab, tr("voice.tab.title", self._language))
 

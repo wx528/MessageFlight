@@ -14,6 +14,7 @@ State machine:
 """
 from __future__ import annotations
 
+import io
 import logging
 import math
 import struct
@@ -25,7 +26,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from message_flight.config import AppConfig
 from message_flight.stt import MiniMaxSTTReader
 from message_flight.voice_commands import parse_command
-from message_flight.wake_word import OpenWakeWordListener, create_listener
+from message_flight.wake_word import OpenWakeWordListener, SherpaOnnxListener, create_listener
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,41 @@ SILENCE_FRAME_COUNT = 6        # consecutive silent frames to end utterance (~0.
 # Timeouts
 COMMAND_TIMEOUT_MS = 5000      # max recording time
 RETURN_TO_IDLE_MS = 1000       # grace period after command/error
+
+
+# Cached prompt sound (generated once, reused across detections)
+_DING_SOUND: Any = None
+
+
+def _play_ding() -> None:
+    """Play a short 'ding' prompt sound when the wake word is detected.
+
+    Generates a 150ms sine-wave chime in-memory and plays it via
+    pygame.mixer.  Falls back silently if pygame or numpy is unavailable.
+    The sound is generated once and cached for reuse.
+    """
+    global _DING_SOUND
+    try:
+        import numpy as np
+        import pygame.mixer
+
+        if not pygame.mixer.get_init():
+            pygame.mixer.init(frequency=22050)
+
+        if _DING_SOUND is None:
+            sr = 22050
+            duration = 0.15  # seconds
+            freq = 880  # A5 note
+            t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+            # Exponential decay envelope for a pleasant chime
+            wave = (np.sin(2 * np.pi * freq * t) * np.exp(-t * 20) * 0.4 * 32767).astype(np.int16)
+            # Stereo: duplicate mono channel
+            stereo = np.column_stack([wave, wave])
+            _DING_SOUND = pygame.mixer.Sound(buffer=stereo.tobytes())
+
+        _DING_SOUND.play()
+    except Exception as e:
+        logger.debug("_play_ding: failed to play prompt sound: %s", e)
 
 
 class STTManagerState(Enum):
@@ -66,14 +102,14 @@ class STTManager(QObject):
     def __init__(
         self,
         config: AppConfig,
-        listener: Optional[OpenWakeWordListener] = None,
+        listener: Optional[OpenWakeWordListener | SherpaOnnxListener] = None,
         stt: Optional[MiniMaxSTTReader] = None,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._config = config
         self._state = STTManagerState.IDLE
-        self._listener: Optional[OpenWakeWordListener] = listener
+        self._listener: Optional[OpenWakeWordListener | SherpaOnnxListener] = listener
         self._stt: Optional[MiniMaxSTTReader] = stt
 
         # Inject dependencies if provided, else create from config
@@ -84,6 +120,7 @@ class STTManager(QObject):
 
         self._audio_buffer = bytearray()
         self._silent_frames = 0
+        self._skip_frames = 3  # discard first ~240ms (wake word tail)
         self._silence_timer: Optional[QTimer] = None
         self._idle_timer: Optional[QTimer] = None
 
@@ -92,6 +129,9 @@ class STTManager(QObject):
             self._listener.wake_word_detected.connect(self._on_wake_word)
             self._listener.audio_frame.connect(self._on_audio_chunk)
             self._listener.error_occurred.connect(self._on_listener_error)
+            # For SherpaOnnxListener: auto-start when model download completes
+            if hasattr(self._listener, "model_ready"):
+                self._listener.model_ready.connect(self._on_model_ready)
         if self._stt is not None:
             self._stt.transcribed.connect(self._on_stt_transcribed)
             self._stt.error_occurred.connect(self._on_stt_error)
@@ -133,11 +173,13 @@ class STTManager(QObject):
             # Already in command flow; ignore double-trigger
             return
         logger.info("STTManager: wake word detected")
+        _play_ding()
         self._set_state(STTManagerState.LISTENING_FOR_COMMAND)
         if self._listener is not None:
             self._listener.pause()
         self._audio_buffer = bytearray()
         self._silent_frames = 0
+        self._skip_frames = 3  # discard first ~240ms (wake word tail)
         self.listening_started.emit()
 
         # Start hard timeout
@@ -150,10 +192,15 @@ class STTManager(QObject):
         """Called once per 80ms frame of 16kHz mono int16 PCM (2560 bytes).
 
         In production this is invoked by a connection from the wake-word
-        listener's frame signal (wiring done in Task 9 / TrayApplication).
-        Tests call it directly to drive the state machine.
+        listener's frame signal. Tests call it directly to drive the
+        state machine.
         """
         if self._state != STTManagerState.LISTENING_FOR_COMMAND:
+            return
+        # Discard the first few frames after wake-word detection to
+        # avoid feeding the wake-word's tail audio into the STT buffer.
+        if self._skip_frames > 0:
+            self._skip_frames -= 1
             return
         self._audio_buffer.extend(audio_chunk)
 
@@ -201,6 +248,12 @@ class STTManager(QObject):
         if self._state != STTManagerState.IDLE:
             self._schedule_return_to_idle()
 
+    def _on_model_ready(self) -> None:
+        """Called when SherpaOnnxListener finishes downloading the model."""
+        logger.info("STTManager: model ready, starting listener")
+        if self._listener is not None:
+            self._listener.start()
+
     def _schedule_return_to_idle(self) -> None:
         if self._idle_timer is not None:
             self._idle_timer.stop()
@@ -220,10 +273,16 @@ class STTManager(QObject):
         """Compute RMS of a 16-bit PCM chunk and compare to threshold."""
         if not audio_chunk:
             return True
-        n_samples = len(audio_chunk) // 2
-        if n_samples == 0:
-            return True
-        samples = struct.unpack(f"<{n_samples}h", audio_chunk)
-        total = sum(s * s for s in samples)
-        rms = math.sqrt(total / n_samples)
+        try:
+            import numpy as np
+            samples = np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float64)
+            rms = np.sqrt(np.mean(samples * samples))
+        except Exception:
+            # Fallback for environments without numpy
+            n_samples = len(audio_chunk) // 2
+            if n_samples == 0:
+                return True
+            samples = struct.unpack(f"<{n_samples}h", audio_chunk)
+            total = sum(s * s for s in samples)
+            rms = math.sqrt(total / n_samples)
         return rms < SILENCE_RMS_THRESHOLD

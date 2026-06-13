@@ -1,11 +1,12 @@
 """Bilingual voice command enum + keyword parser.
 
 Maps free-form speech (Chinese or English) to one of five control
-actions. Matching is case-insensitive substring: the first keyword
-that appears in the input wins.
+actions. Matching is case-insensitive with word boundaries: the first
+keyword that appears as a standalone word in the input wins.
 """
 from __future__ import annotations
 
+import re
 from enum import Enum
 
 
@@ -31,12 +32,20 @@ COMMAND_PATTERNS: dict[VoiceCommand, list[str]] = {
 def parse_command(text: str) -> VoiceCommand | None:
     """Return the first matching :class:`VoiceCommand`, or ``None``.
 
-    Matching is case-insensitive substring: ``text.lower()`` is scanned
-    for any keyword in :data:`COMMAND_PATTERNS` (in declared order).
+    Matching is case-insensitive with word boundaries. Chinese keywords
+    use a simple ``in`` substring check (no word boundaries in Chinese).
+    English keywords require a word boundary (``\\b``) so that e.g.
+    ``"restart"`` does not match ``"start"``.
     """
     lowered = text.lower()
     for cmd, keywords in COMMAND_PATTERNS.items():
         for kw in keywords:
-            if kw.lower() in lowered:
+            kw_lower = kw.lower()
+            # Chinese keywords: simple substring match (no word boundaries)
+            if any("\u4e00" <= c <= "\u9fff" for c in kw):
+                if kw_lower in lowered:
+                    return cmd
+            # English keywords: word boundary match
+            elif re.search(rf"\b{re.escape(kw_lower)}\b", lowered):
                 return cmd
     return None

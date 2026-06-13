@@ -90,6 +90,7 @@ class STTManager(QObject):
         # Wire up
         if self._listener is not None:
             self._listener.wake_word_detected.connect(self._on_wake_word)
+            self._listener.audio_frame.connect(self._on_audio_chunk)
             self._listener.error_occurred.connect(self._on_listener_error)
         if self._stt is not None:
             self._stt.transcribed.connect(self._on_stt_transcribed)
@@ -203,6 +204,7 @@ class STTManager(QObject):
     def _schedule_return_to_idle(self) -> None:
         if self._idle_timer is not None:
             self._idle_timer.stop()
+            self._idle_timer.deleteLater()
         self._idle_timer = QTimer(self)
         self._idle_timer.setSingleShot(True)
         self._idle_timer.timeout.connect(self._return_to_idle)
@@ -221,9 +223,7 @@ class STTManager(QObject):
         n_samples = len(audio_chunk) // 2
         if n_samples == 0:
             return True
-        total = 0
-        for i in range(n_samples):
-            sample = struct.unpack_from("<h", audio_chunk, i * 2)[0]
-            total += sample * sample
+        samples = struct.unpack(f"<{n_samples}h", audio_chunk)
+        total = sum(s * s for s in samples)
         rms = math.sqrt(total / n_samples)
         return rms < SILENCE_RMS_THRESHOLD

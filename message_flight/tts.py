@@ -14,7 +14,7 @@ import sys
 import tempfile
 import uuid
 
-from PyQt6.QtCore import QByteArray, QObject, QTimer, QUrl, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, QUrl, pyqtSignal
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ class MiniMaxReader(TTSReader, QObject):
                 "voice_id": self._voice_id,
                 "speed": self._speed,
                 "vol": self._vol,
-                "pitch": 0,
+                "pitch": self._pitch,
             },
             "audio_setting": {
                 "sample_rate": 32000,
@@ -227,11 +227,10 @@ class MiniMaxReader(TTSReader, QObject):
             reply.deleteLater()
             return
 
-        self._buffer = QByteArray(audio_bytes)
         # Use uuid to avoid filename collisions between concurrent requests
         audio_path = os.path.join(tempfile.gettempdir(), f"messageflight_{uuid.uuid4().hex}.mp3")
         with open(audio_path, "wb") as f:
-            f.write(self._buffer.data())
+            f.write(audio_bytes)
 
         self._active_audio_files.add(audio_path)
         logger.info("MiniMaxReader._on_reply_finished: saved audio to %s (%d bytes)", audio_path, len(audio_bytes))
@@ -256,11 +255,13 @@ class MiniMaxReader(TTSReader, QObject):
             sound.play()
             logger.info("MiniMaxReader: playing audio from %s", audio_path)
 
-            # Track this file for cleanup
+            # Track this file for cleanup; use the Sound object's channel count
+            # to detect when *this specific* sound finishes playing.
             timer = QTimer(self)
             timer.setSingleShot(True)
-            # Capture audio_path by value to avoid closure issues
-            timer.timeout.connect(lambda _path=audio_path, _timer=timer: self._cleanup_after_playback(_path, _timer))
+            timer.timeout.connect(
+                lambda _sound=sound, _path=audio_path, _timer=timer: self._cleanup_after_playback(_sound, _path, _timer)
+            )
             timer.start(100)  # Check every 100ms
 
         except Exception as e:
@@ -268,11 +269,11 @@ class MiniMaxReader(TTSReader, QObject):
             self._remove_audio_file(audio_path)
             self.error_occurred.emit(f"Audio playback error: {e}", self._last_text)
 
-    def _cleanup_after_playback(self, audio_path: str, timer: QTimer) -> None:
-        """Check if pygame audio playback has finished and clean up the file."""
+    def _cleanup_after_playback(self, sound: "pygame.mixer.Sound", audio_path: str, timer: QTimer) -> None:
+        """Check if a specific Sound has finished playing and clean up the file."""
         try:
             import pygame
-            if not pygame.mixer.get_busy():
+            if sound.get_num_channels() == 0:
                 logger.debug("MiniMaxReader: playback finished for %s", audio_path)
                 self.playback_finished.emit()
                 timer.stop()

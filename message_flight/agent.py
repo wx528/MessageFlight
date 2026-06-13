@@ -123,7 +123,11 @@ SYSTEM_PROMPT = (
     "You are the AI assistant for MessageFlight, a desktop notification app with a flying airplane animation. "
     "You understand Chinese and English. When the user asks you to do something, use the available tools. "
     "For casual conversation or questions, respond naturally and concisely (1-2 sentences). "
-    "Always respond in the same language the user is speaking."
+    "Always respond in the same language the user is speaking.\n\n"
+    "IMPORTANT: Before calling any MCP tool that performs destructive operations (delete, remove, overwrite, "
+    "or any irreversible action), you MUST first confirm with the user by responding with a confirmation "
+    "message like 'Are you sure you want to delete X?' and wait for the user's response. "
+    "Only proceed with the tool call after explicit user confirmation."
 )
 
 MAX_HISTORY_TURNS = 10  # Keep last 10 messages (5 user + 5 assistant)
@@ -226,6 +230,55 @@ class LLMAgent(QObject):
         reply = nam.post(request, body)
         self._pending[id(reply)] = messages
         logger.info("LLMAgent.chat: sent %d chars", len(user_text))
+
+    def submit_tool_result(self, tool_name: str, result: str) -> None:
+        """Submit a tool execution result back to the LLM for a follow-up response.
+
+        This uses the proper ``role: tool`` message format so the LLM can
+        correctly interpret the result and generate a natural-language reply.
+
+        Args:
+            tool_name: The qualified tool name (e.g. ``mcp__obsidian__search_notes``).
+            result: The tool's output as a string.
+        """
+        if not self._api_key:
+            self.error_occurred.emit("no API key")
+            return
+
+        # Append tool result to history
+        self._history.append({
+            "role": "tool",
+            "name": tool_name,
+            "content": result[:2000],  # Truncate very long results
+        })
+        self._trim_history()
+
+        # Build messages with the tool result included
+        system_content = SYSTEM_PROMPT
+        if self._status_info:
+            system_content += f"\n\nCurrent app status: {self._status_info}"
+
+        messages = [{"role": "system", "content": system_content}]
+        messages.extend(self._history[-MAX_HISTORY_TURNS:])
+
+        # Build request
+        request = QNetworkRequest(QUrl(self._ENDPOINT))
+        request.setTransferTimeout(self._TIMEOUT_MS)
+        request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
+        request.setRawHeader(b"Authorization", f"Bearer {self._api_key}".encode())
+
+        payload: dict[str, Any] = {
+            "model": self._MODEL,
+            "messages": messages,
+            "tools": TOOL_DEFINITIONS + self._mcp_tool_definitions,
+            "tool_choice": "auto",
+        }
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+        nam = self._get_nam()
+        reply = nam.post(request, body)
+        self._pending[id(reply)] = messages
+        logger.info("LLMAgent.submit_tool_result: sent result for %s", tool_name)
 
     def _get_nam(self) -> QNetworkAccessManager:
         if self._nam is None:

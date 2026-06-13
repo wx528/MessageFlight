@@ -23,6 +23,7 @@ from message_flight.flight_widget import FlightWidget
 from message_flight.i18n import tr
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
 from message_flight.agent import LLMAgent
+from message_flight.agent_chat_window import AgentChatWindow
 from message_flight.mcp_client import MCPClientManager
 from message_flight.persona_rewriter import PersonaRewriter
 from message_flight.plane_presets import get_preset, list_available_presets
@@ -81,6 +82,10 @@ class TrayApplication:
         if self._mcp_client.available and self.cfg.mcp_servers_json:
             self._mcp_client.start(self.cfg.mcp_servers_json)
 
+        # Agent chat window
+        self._chat_window = AgentChatWindow(language=self.language)
+        self._chat_window.text_submitted.connect(self._on_chat_text_submitted)
+
         # Gamification engine (Task 17)
         self._engine = AchievementEngine(self.state)
         self._toast_manager = ToastManager()
@@ -120,6 +125,10 @@ class TrayApplication:
         self.action_settings = QAction(tr("tray.settings", self.language), self.menu)
         self.action_settings.triggered.connect(self._open_settings)
         self.menu.addAction(self.action_settings)
+
+        self.action_chat = QAction(tr("tray.chat", self.language), self.menu)
+        self.action_chat.triggered.connect(self._toggle_chat_window)
+        self.menu.addAction(self.action_chat)
 
         self.action_preset_editor = QAction(tr("tray.preset_editor", self.language), self.menu)
         self.action_preset_editor.triggered.connect(self._open_preset_editor)
@@ -299,6 +308,21 @@ class TrayApplication:
     # LLM Agent handlers
     # ------------------------------------------------------------------
 
+    def _toggle_chat_window(self) -> None:
+        """Toggle the agent chat window visibility."""
+        if self._chat_window.isVisible():
+            self._chat_window.hide()
+        else:
+            self._chat_window.show_at_cursor()
+
+    def _on_chat_text_submitted(self, text: str) -> None:
+        """User typed a message in the chat window — send to agent."""
+        if not self._agent.enabled:
+            self._chat_window.add_system_message(tr("voice.agent_error", self.language))
+            return
+        self._agent.set_status_info(self._get_app_status())
+        self._agent.chat(text)
+
     def _on_agent_request(self, text: str) -> None:
         """STTManager couldn't match a fixed command — forward to LLM agent."""
         if not self._agent.enabled:
@@ -311,6 +335,9 @@ class TrayApplication:
         # Update agent with current app status
         self._agent.set_status_info(self._get_app_status())
         self._agent.chat(text)
+        # Show in chat window
+        self._chat_window.add_user_message(text)
+        self._chat_window.show_at_cursor()
 
     def _on_agent_tool_called(self, action: str, params: dict) -> None:
         """Agent requested a tool call — execute it."""
@@ -361,7 +388,8 @@ class TrayApplication:
             pass
 
     def _on_agent_text_response(self, text: str) -> None:
-        """Agent responded with plain text — show toast and speak."""
+        """Agent responded with plain text — show in chat window, toast and speak."""
+        self._chat_window.add_agent_message(text)
         self._toast_manager.show_toast(title=text, description="", icon="🤖")
         try:
             self.tts.speak(text)
@@ -406,9 +434,32 @@ class TrayApplication:
         self._agent.set_mcp_tools(definitions)
         logger.info("TrayApplication: MCP tools updated, %d tools available", len(definitions))
 
+    _DANGEROUS_TOOL_KEYWORDS = frozenset({"delete", "remove", "destroy", "overwrite", "erase"})
+
     def _on_agent_mcp_tool_called(self, server_name: str, tool_name: str, params: dict) -> None:
-        """Agent requested an MCP tool call — forward to MCP client."""
+        """Agent requested an MCP tool call — forward to MCP client (with confirmation for dangerous ops)."""
         logger.info("TrayApplication: MCP tool call %s/%s", server_name, tool_name)
+
+        # Check for dangerous operations
+        tool_lower = tool_name.lower()
+        if any(kw in tool_lower for kw in self._DANGEROUS_TOOL_KEYWORDS):
+            from PyQt6.QtWidgets import QMessageBox
+            confirm = QMessageBox.question(
+                None,
+                tr("mcp.confirm_title", self.language),
+                tr("mcp.confirm_delete", self.language).format(server=server_name, tool=tool_name),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if confirm != QMessageBox.StandardButton.Yes:
+                self._chat_window.add_system_message(
+                    tr("mcp.cancelled", self.language), icon="🚫"
+                )
+                return
+
+        self._chat_window.add_system_message(
+            tr("mcp.calling_tool", self.language).format(server=server_name, tool=tool_name),
+            icon="🔗",
+        )
         self._toast_manager.show_toast(
             title=tr("mcp.calling_tool", self.language).format(server=server_name, tool=tool_name),
             description="",
@@ -419,10 +470,10 @@ class TrayApplication:
     def _on_mcp_tool_result(self, server_name: str, tool_name: str, result_json: str) -> None:
         """MCP tool returned a result — feed it back to the agent for a natural language response."""
         logger.info("TrayApplication: MCP tool result from %s/%s", server_name, tool_name)
-        # Feed the result back to the LLM so it can formulate a natural response
-        self._agent.chat(
-            f"[System: MCP tool {server_name}/{tool_name} returned: {result_json[:500]}]"
-        )
+        self._chat_window.add_tool_result(server_name, tool_name, result_json)
+        # Use proper role:tool message format for the LLM
+        qualified_name = f"mcp__{server_name}__{tool_name}"
+        self._agent.submit_tool_result(qualified_name, result_json)
 
     def _on_mcp_tool_error(self, server_name: str, tool_name: str, error_msg: str) -> None:
         """MCP tool call failed."""
@@ -500,6 +551,7 @@ class TrayApplication:
         self.action_demo.setText(tr("tray.demo", self.language))
         self.action_dnd.setText(tr("tray.dnd", self.language))
         self.action_settings.setText(tr("tray.settings", self.language))
+        self.action_chat.setText(tr("tray.chat", self.language))
         self.action_preset_editor.setText(tr("tray.preset_editor", self.language))
         self.action_autostart.setText(tr("tray.autostart", self.language))
         self.action_quit.setText(tr("tray.quit", self.language))

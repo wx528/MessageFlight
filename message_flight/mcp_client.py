@@ -27,7 +27,7 @@ import json
 import logging
 from typing import Any, Optional
 
-from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QObject, QThread, QTimer, pyqtSignal, pyqtSlot
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,26 @@ class _MCPWorker(QThread):
         if session is None:
             raise RuntimeError(f"not connected to server {server_name!r}")
 
-        result = await session.call_tool(tool_name, arguments)
+        try:
+            result = await session.call_tool(tool_name, arguments)
+        except Exception as exc:
+            # Session likely broken — remove it so we can reconnect
+            logger.warning("MCPWorker: session for %s appears broken: %s", server_name, exc)
+            self._sessions.pop(server_name, None)
+            # Try to reconnect once
+            config = self._servers.get(server_name)
+            if config:
+                try:
+                    await self._connect_server(server_name, config)
+                    logger.info("MCPWorker: reconnected to %s, retrying tool call", server_name)
+                    session = self._sessions[server_name]
+                    result = await session.call_tool(tool_name, arguments)
+                except Exception as reconnect_exc:
+                    raise RuntimeError(
+                        f"tool call failed and reconnect to {server_name} also failed: {reconnect_exc}"
+                    ) from exc
+            else:
+                raise
 
         # Extract text content from the result
         parts = []
@@ -227,6 +246,10 @@ class MCPClientManager(QObject):
         self._worker: Optional[_MCPWorker] = None
         self._tools: dict[str, MCPToolInfo] = {}  # qualified_name -> MCPToolInfo
         self._connected_servers: set[str] = set()
+        self._servers_config_json: str = ""
+        self._reconnect_timer = QTimer(self)
+        self._reconnect_timer.setInterval(60_000)  # Check every 60 seconds
+        self._reconnect_timer.timeout.connect(self._on_reconnect_check)
 
     @property
     def available(self) -> bool:
@@ -264,6 +287,7 @@ class MCPClientManager(QObject):
         # Stop existing worker if any
         self.stop()
 
+        self._servers_config_json = servers_config_json
         self._worker = _MCPWorker(self)
         self._worker.tools_discovered.connect(self._on_tools_discovered)
         self._worker.tool_result.connect(self.tool_result)
@@ -275,9 +299,11 @@ class MCPClientManager(QObject):
             self._worker.add_server(config)
 
         self._worker.start()
+        self._reconnect_timer.start()
         logger.info("MCPClientManager: starting worker with %d servers", len(configs))
 
     def stop(self) -> None:
+        self._reconnect_timer.stop()
         if self._worker is not None:
             self._worker.stop()
             self._worker.wait(3000)
@@ -328,3 +354,11 @@ class MCPClientManager(QObject):
             logger.info("MCPClientManager: connected to %s", server_name)
         else:
             logger.warning("MCPClientManager: failed to connect to %s", server_name)
+
+    def _on_reconnect_check(self) -> None:
+        """Periodic check: if worker died or servers disconnected, restart."""
+        if not self._servers_config_json:
+            return
+        if self._worker is None or not self._worker.isRunning():
+            logger.info("MCPClientManager: worker not running, restarting...")
+            self.start(self._servers_config_json)

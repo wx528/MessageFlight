@@ -141,8 +141,8 @@ def test_end_to_end_wake_word_then_pause_command(qapp) -> None:
     mgr.stop()
 
 
-def test_end_to_end_no_match_emits_failed_signal(qapp) -> None:
-    """Wake word -> STT returns nonsense -> transcript_failed('no_match') -> toast territory."""
+def test_end_to_end_no_match_emits_agent_request(qapp) -> None:
+    """Wake word -> STT returns nonsense -> agent_request(text) instead of transcript_failed."""
     from message_flight.stt_manager import STTManager
 
     cfg = AppConfig(stt_enabled=True)
@@ -155,8 +155,8 @@ def test_end_to_end_no_match_emits_failed_signal(qapp) -> None:
     listener.start()
     mgr.start()
 
-    captured_failures: list[str] = []
-    mgr.transcript_failed.connect(captured_failures.append)
+    captured_agent: list[str] = []
+    mgr.agent_request.connect(captured_agent.append)
 
     listener.feed_wake_word()
     QApplication.processEvents()
@@ -171,7 +171,7 @@ def test_end_to_end_no_match_emits_failed_signal(qapp) -> None:
     mgr._on_stt_transcribed("今天天气不错", b"")
     QApplication.processEvents()
 
-    assert captured_failures == ["no_match"]
+    assert captured_agent == ["今天天气不错"]
     mgr.stop()
 
 

@@ -126,6 +126,10 @@ _TRANSLATIONS = {
         "voice.cmd_example.send_demo": "演示 / 测试",
         "voice.cmd_example.open_settings": "设置 / 打开设置",
         "voice.cmd_example.quit_app": "退出 / 关闭应用",
+        "voice.agent_error": "智能助手暂时无法响应",
+        "voice.agent_chat": "智能助手",
+        "agent.enabled": "启用智能助手",
+        "agent.enabled_hint": "开启后，语音识别无法匹配固定命令时将交给大模型理解",
     },
     "en": {
         "tray.show": "Show plane",
@@ -236,6 +240,10 @@ _TRANSLATIONS = {
         "voice.cmd_example.send_demo": "demo / test",
         "voice.cmd_example.open_settings": "settings / open settings",
         "voice.cmd_example.quit_app": "quit / exit / close",
+        "voice.agent_error": "AI assistant temporarily unavailable",
+        "voice.agent_chat": "AI Assistant",
+        "agent.enabled": "Enable AI assistant",
+        "agent.enabled_hint": "When enabled, unrecognized speech is forwarded to the LLM for interpretation",
     },
     "ja": {
         "tray.show": "飛行機を表示",

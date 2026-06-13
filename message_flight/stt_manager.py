@@ -98,6 +98,7 @@ class STTManager(QObject):
     command_recognized = pyqtSignal(str)
     transcript_failed = pyqtSignal(str)
     listening_started = pyqtSignal()
+    agent_request = pyqtSignal(str)  # Emitted when no fixed command matches; text is forwarded to LLM agent
 
     def __init__(
         self,
@@ -234,7 +235,9 @@ class STTManager(QObject):
     def _on_stt_transcribed(self, text: str, _audio: bytes) -> None:
         cmd = parse_command(text)
         if cmd is None:
-            self.transcript_failed.emit("no_match")
+            # No fixed command matched — forward to LLM agent
+            logger.info("STTManager: no fixed command for %r, forwarding to agent", text[:50])
+            self.agent_request.emit(text)
             self._schedule_return_to_idle()
             return
         logger.info("STTManager: command recognized: %s", cmd.value)

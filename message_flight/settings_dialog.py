@@ -270,9 +270,16 @@ class SettingsDialog(QDialog):
         form.addRow(tr("voice.wake_word", self._language), self._voice_wake_word_combo)
         form.addRow(tr("voice.sensitivity", self._language), sensitivity_row)
         form.addRow(tr("voice.custom_pinyin", self._language), self._custom_pinyin_edit)
+
+        # Agent toggle
+        self._agent_enabled_check = QCheckBox()
+        self._agent_enabled_check.setChecked(initial.agent_enabled)
+        form.addRow(tr("agent.enabled", self._language), self._agent_enabled_check)
+
         voice_layout.addLayout(form)
         voice_layout.addWidget(QLabel(tr("voice.sensitivity_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.custom_pinyin_hint", self._language)))
+        voice_layout.addWidget(QLabel(tr("agent.enabled_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.wake_word_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.disabled_hint", self._language)))
 
@@ -318,6 +325,7 @@ class SettingsDialog(QDialog):
         result.stt_wake_word = self._voice_wake_word_combo.currentData() or "hey_jarvis"
         result.stt_sensitivity = self._sensitivity_slider.value() / 100.0
         result.stt_custom_pinyin = self._custom_pinyin_edit.text().strip()
+        result.agent_enabled = self._agent_enabled_check.isChecked()
         return result
 
     # ------------------------------------------------------------------

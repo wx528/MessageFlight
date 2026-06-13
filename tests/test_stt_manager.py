@@ -67,15 +67,15 @@ def test_command_match_returns_to_idle(qapp) -> None:
     mgr.stop()
 
 
-def test_no_command_match_emits_transcript_failed(qapp) -> None:
+def test_no_command_match_emits_agent_request(qapp) -> None:
     mgr, listener, _stt = _make_manager(qapp)
     captured = []
-    mgr.transcript_failed.connect(lambda r: captured.append(r))
+    mgr.agent_request.connect(lambda t: captured.append(t))
     mgr.start()
     mgr._state = mgr._state.__class__.LISTENING_FOR_COMMAND
 
     mgr._on_stt_transcribed("今天天气不错", b"")
-    assert captured == ["no_match"]
+    assert captured == ["今天天气不错"]
     mgr.stop()
 
 

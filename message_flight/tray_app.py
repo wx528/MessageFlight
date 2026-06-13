@@ -22,6 +22,7 @@ from message_flight.demo_notifications import NOTIFICATIONS
 from message_flight.flight_widget import FlightWidget
 from message_flight.i18n import tr
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
+from message_flight.agent import LLMAgent
 from message_flight.persona_rewriter import PersonaRewriter
 from message_flight.plane_presets import get_preset, list_available_presets
 from message_flight.preset_editor import PresetEditorWindow
@@ -60,6 +61,15 @@ class TrayApplication:
             enabled=self.cfg.persona_enabled,
         )
         self.persona.rewrite_finished.connect(self._on_persona_rewritten)
+
+        # LLM Agent for free-form voice commands
+        self._agent = LLMAgent(
+            api_key=self.cfg.minimax_subscription_key,
+            enabled=self.cfg.agent_enabled,
+        )
+        self._agent.tool_called.connect(self._on_agent_tool_called)
+        self._agent.text_response.connect(self._on_agent_text_response)
+        self._agent.error_occurred.connect(self._on_agent_error)
 
         # Gamification engine (Task 17)
         self._engine = AchievementEngine(self.state)
@@ -186,6 +196,7 @@ class TrayApplication:
         self._stt_manager.command_recognized.connect(self._on_voice_command)
         self._stt_manager.transcript_failed.connect(self._on_voice_transcript_failed)
         self._stt_manager.listening_started.connect(self._on_voice_listening_started)
+        self._stt_manager.agent_request.connect(self._on_agent_request)
         self._stt_manager.start()
 
     def _on_voice_state_changed(self, state: str) -> None:
@@ -273,6 +284,105 @@ class TrayApplication:
             description="",
             icon="🎤",
         )
+
+    # ------------------------------------------------------------------
+    # LLM Agent handlers
+    # ------------------------------------------------------------------
+
+    def _on_agent_request(self, text: str) -> None:
+        """STTManager couldn't match a fixed command — forward to LLM agent."""
+        if not self._agent.enabled:
+            self._toast_manager.show_toast(
+                title=tr("voice.not_understood", self.language),
+                description="",
+                icon="🤔",
+            )
+            return
+        # Update agent with current app status
+        self._agent.set_status_info(self._get_app_status())
+        self._agent.chat(text)
+
+    def _on_agent_tool_called(self, action: str, params: dict) -> None:
+        """Agent requested a tool call — execute it."""
+        if action == "get_status":
+            # Agent asked for status — respond with the info
+            status = params.get("_status", self._get_app_status())
+            self._agent.chat(f"[System: current status is: {status}]")
+            return
+
+        # Map agent actions to existing command handling
+        if action == "pause":
+            self._toggle_pause(True)
+            msg = tr("voice.cmd.pause", self.language)
+        elif action == "resume":
+            self._toggle_pause(False)
+            msg = tr("voice.cmd.resume", self.language)
+        elif action == "next_preset":
+            self._on_plane_clicked()
+            msg = tr("voice.cmd.next_preset", self.language)
+        elif action == "toggle_dnd":
+            enabled = params.get("enabled")
+            if enabled is not None:
+                new_state = bool(enabled)
+            else:
+                new_state = not self.action_dnd.isChecked()
+            self._toggle_dnd(new_state)
+            self.action_dnd.setChecked(new_state)
+            key = "voice.cmd.dnd_on" if new_state else "voice.cmd.dnd_off"
+            msg = tr(key, self.language)
+        elif action == "open_settings":
+            self._open_settings()
+            msg = tr("voice.cmd.open_settings", self.language)
+        elif action == "quit_app":
+            msg = tr("voice.cmd.quit_app", self.language)
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, self._quit)
+        elif action == "send_demo":
+            self._send_demo_notification()
+            return
+        else:
+            logger.warning("TrayApplication: unknown agent action %s", action)
+            return
+
+        self._toast_manager.show_toast(title=msg, description="", icon="🤖")
+        try:
+            self.tts.speak(msg)
+        except Exception:
+            pass
+
+    def _on_agent_text_response(self, text: str) -> None:
+        """Agent responded with plain text — show toast and speak."""
+        self._toast_manager.show_toast(title=text, description="", icon="🤖")
+        try:
+            self.tts.speak(text)
+        except Exception:
+            pass
+
+    def _on_agent_error(self, msg: str) -> None:
+        """Agent encountered an error."""
+        logger.warning("TrayApplication: agent error: %s", msg)
+        if not self._agent.enabled:
+            # Agent disabled — fall back to "not understood" toast
+            self._toast_manager.show_toast(
+                title=tr("voice.not_understood", self.language),
+                description="",
+                icon="🤔",
+            )
+        else:
+            self._toast_manager.show_toast(
+                title=tr("voice.agent_error", self.language),
+                description="",
+                icon="⚠️",
+            )
+
+    def _get_app_status(self) -> str:
+        """Return a human-readable status string for the LLM agent."""
+        parts = []
+        parts.append(f"paused={self.widget.plane.is_paused()}")
+        parts.append(f"dnd={self.action_dnd.isChecked()}")
+        parts.append(f"preset={self.cfg.plane_preset_key}")
+        parts.append(f"language={self.language}")
+        return ", ".join(parts)
 
     def _create_tray_icon(self, state: str = "idle") -> QIcon:
         """Build a tray icon for the given voice state.
@@ -529,6 +639,10 @@ class TrayApplication:
                 system_prompt=self._persona_prompt_for(new_cfg.plane_preset_key),
                 enabled=new_cfg.persona_enabled,
             )
+
+            # Update LLM agent config
+            self._agent.set_api_key(new_cfg.minimax_subscription_key)
+            self._agent.enabled = new_cfg.agent_enabled
 
             # Voice input: construct on enable, tear down on disable.
             # Without this, enabling voice in settings required an app

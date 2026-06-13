@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSlider,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -241,19 +242,44 @@ class SettingsDialog(QDialog):
         current_index = self._voice_wake_word_combo.findData(initial.stt_wake_word)
         self._voice_wake_word_combo.setCurrentIndex(max(0, current_index))
 
+        # Sensitivity slider (0.0 – 1.0, default 0.5)
+        self._sensitivity_slider = QSlider()
+        from PyQt6.QtCore import Qt
+        self._sensitivity_slider.setOrientation(Qt.Orientation.Horizontal)
+        self._sensitivity_slider.setRange(0, 100)
+        self._sensitivity_slider.setValue(int(initial.stt_sensitivity * 100))
+        self._sensitivity_label = QLabel(f"{initial.stt_sensitivity:.0%}")
+        self._sensitivity_slider.valueChanged.connect(
+            lambda v: self._sensitivity_label.setText(f"{v / 100:.0%}")
+        )
+        sensitivity_row = QHBoxLayout()
+        sensitivity_row.addWidget(self._sensitivity_slider)
+        sensitivity_row.addWidget(self._sensitivity_label)
+
+        # Custom wake word pinyin input
+        self._custom_pinyin_edit = QLineEdit()
+        self._custom_pinyin_edit.setPlaceholderText(
+            tr("voice.custom_pinyin_placeholder", self._language)
+        )
+        self._custom_pinyin_edit.setText(initial.stt_custom_pinyin)
+
         voice_tab = QWidget()
         voice_layout = QVBoxLayout(voice_tab)
         form = QFormLayout()
         form.addRow(self._voice_enabled_checkbox)
         form.addRow(tr("voice.wake_word", self._language), self._voice_wake_word_combo)
+        form.addRow(tr("voice.sensitivity", self._language), sensitivity_row)
+        form.addRow(tr("voice.custom_pinyin", self._language), self._custom_pinyin_edit)
         voice_layout.addLayout(form)
+        voice_layout.addWidget(QLabel(tr("voice.sensitivity_hint", self._language)))
+        voice_layout.addWidget(QLabel(tr("voice.custom_pinyin_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.wake_word_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.disabled_hint", self._language)))
 
         # Command list
         voice_layout.addSpacing(8)
         voice_layout.addWidget(QLabel(f"<b>{tr('voice.commands_title', self._language)}</b>"))
-        for cmd_key in ("pause", "resume", "next_preset", "toggle_dnd", "send_demo"):
+        for cmd_key in ("pause", "resume", "next_preset", "toggle_dnd", "send_demo", "open_settings", "quit_app"):
             voice_layout.addWidget(QLabel(tr(f"voice.cmd_example.{cmd_key}", self._language)))
 
         voice_layout.addStretch(1)
@@ -290,6 +316,8 @@ class SettingsDialog(QDialog):
         result.language = self._language_combo.currentData()
         result.stt_enabled = self._voice_enabled_checkbox.isChecked()
         result.stt_wake_word = self._voice_wake_word_combo.currentData() or "hey_jarvis"
+        result.stt_sensitivity = self._sensitivity_slider.value() / 100.0
+        result.stt_custom_pinyin = self._custom_pinyin_edit.text().strip()
         return result
 
     # ------------------------------------------------------------------

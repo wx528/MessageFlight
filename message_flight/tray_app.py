@@ -200,31 +200,45 @@ class TrayApplication:
         except ValueError:
             logger.error("TrayApplication: unknown voice command %r", command_value)
             return
+
+        # Map command to i18n key for toast + TTS feedback
+        toast_key: str = ""
+        icon: str = ""
         if cmd == VoiceCommand.PAUSE:
             self._toggle_pause(True)
-            self._toast_manager.show_toast(
-                title=tr("voice.cmd.pause", self.language), description="", icon="⏸",
-            )
+            toast_key, icon = "voice.cmd.pause", "⏸"
         elif cmd == VoiceCommand.RESUME:
             self._toggle_pause(False)
-            self._toast_manager.show_toast(
-                title=tr("voice.cmd.resume", self.language), description="", icon="▶",
-            )
+            toast_key, icon = "voice.cmd.resume", "▶"
         elif cmd == VoiceCommand.NEXT_PRESET:
             self._on_plane_clicked()
-            self._toast_manager.show_toast(
-                title=tr("voice.cmd.next_preset", self.language), description="", icon="✈",
-            )
+            toast_key, icon = "voice.cmd.next_preset", "✈"
         elif cmd == VoiceCommand.TOGGLE_DND:
             new_state = not self.action_dnd.isChecked()
             self._toggle_dnd(new_state)
             self.action_dnd.setChecked(new_state)
-            key = "voice.cmd.dnd_on" if new_state else "voice.cmd.dnd_off"
-            self._toast_manager.show_toast(
-                title=tr(key, self.language), description="", icon="🔕" if new_state else "🔔",
-            )
+            toast_key = "voice.cmd.dnd_on" if new_state else "voice.cmd.dnd_off"
+            icon = "🔕" if new_state else "🔔"
         elif cmd == VoiceCommand.SEND_DEMO:
             self._send_demo_notification()
+            return  # no toast/TTS for demo
+        elif cmd == VoiceCommand.OPEN_SETTINGS:
+            self._open_settings()
+            toast_key, icon = "voice.cmd.open_settings", "⚙"
+        elif cmd == VoiceCommand.QUIT_APP:
+            toast_key, icon = "voice.cmd.quit_app", "👋"
+            # Delay quit slightly so the toast is visible
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, self._quit)
+
+        if toast_key:
+            msg = tr(toast_key, self.language)
+            self._toast_manager.show_toast(title=msg, description="", icon=icon)
+            # Voice feedback via TTS
+            try:
+                self.tts.speak(msg)
+            except Exception:
+                pass
 
     def _on_voice_transcript_failed(self, reason: str) -> None:
         logger.info("TrayApplication: voice transcript failed: %s", reason)

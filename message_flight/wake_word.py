@@ -161,16 +161,28 @@ def _ensure_sherpa_model() -> Path:
     return model_dir
 
 
-def _build_sherpa_keywords_file(wake_word_key: str, model_dir: Path) -> Path:
+def _build_sherpa_keywords_file(wake_word_key: str, model_dir: Path, custom_pinyin: str = "") -> Path:
     """Build a keywords.txt file for sherpa-onnx from the wake word registry.
+
+    If *custom_pinyin* is provided, it is used directly instead of looking
+    up the registry.  This allows user-defined wake words.
 
     Returns the path to the generated keywords file.
     """
+    cache_dir = _get_wake_word_cache_dir()
+
+    if custom_pinyin:
+        # Custom wake word — use the pinyin directly
+        keywords_path = cache_dir / f"keywords_custom_{wake_word_key}.txt"
+        label = wake_word_key.replace("_", " ")
+        keywords_path.write_text(f"{custom_pinyin} @{label}\n", encoding="utf-8")
+        logger.info("_build_sherpa_keywords_file: wrote custom %s", keywords_path)
+        return keywords_path
+
     meta = SHERPA_WAKE_WORDS.get(wake_word_key)
     if meta is None:
         raise WakeWordInitError(f"unknown sherpa wake word: {wake_word_key!r}")
 
-    cache_dir = _get_wake_word_cache_dir()
     keywords_path = cache_dir / f"keywords_{wake_word_key}.txt"
     label = meta["label_zh"]
     pinyin = meta["pinyin"]
@@ -431,12 +443,14 @@ class SherpaOnnxListener(QObject):
         wake_word_key: str = "ni_hao_xiao_zhi",
         sensitivity: float = 0.5,
         debounce_seconds: float = 1.0,
+        custom_pinyin: str = "",
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._wake_word_key = wake_word_key
         self._sensitivity = sensitivity
         self._debounce_seconds = debounce_seconds
+        self._custom_pinyin = custom_pinyin
         self._kws: Any = None
         self._stream: Any = None
         self._worker: Optional[_SherpaAudioWorker] = None
@@ -461,7 +475,9 @@ class SherpaOnnxListener(QObject):
             import sherpa_onnx  # type: ignore[import-untyped]
 
             model_dir = _ensure_sherpa_model()
-            keywords_path = _build_sherpa_keywords_file(self._wake_word_key, model_dir)
+            keywords_path = _build_sherpa_keywords_file(
+                self._wake_word_key, model_dir, custom_pinyin=self._custom_pinyin,
+            )
 
             threshold = max(0.1, 0.5 - self._sensitivity * 0.4)
 
@@ -584,6 +600,7 @@ def create_listener(
     wake_word_key: str = "hey_jarvis",
     sensitivity: float = 0.5,
     debounce_seconds: float = 1.0,
+    custom_pinyin: str = "",
     parent: Optional[QObject] = None,
 ) -> OpenWakeWordListener | SherpaOnnxListener:
     """Create the appropriate wake word listener for the given key.
@@ -591,6 +608,9 @@ def create_listener(
     Uses ``OpenWakeWordListener`` for built-in English wake words and
     ``SherpaOnnxListener`` for Chinese wake words (and any custom key
     that is not a built-in openwakeword model name).
+
+    If *custom_pinyin* is provided, the SherpaOnnxListener will use it
+    as the keyword pinyin instead of looking up the registry.
     """
     if wake_word_key in BUILTIN_WAKE_WORDS:
         logger.info("create_listener: using openwakeword for %s", wake_word_key)
@@ -606,5 +626,6 @@ def create_listener(
             wake_word_key=wake_word_key,
             sensitivity=sensitivity,
             debounce_seconds=debounce_seconds,
+            custom_pinyin=custom_pinyin,
             parent=parent,
         )

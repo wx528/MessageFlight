@@ -68,6 +68,8 @@ PERSONA_PROMPTS_JSON_KEY = "persona_prompts_json"
 # Voice input (v0.4.0+)
 STT_ENABLED_KEY = "stt_enabled"
 STT_WAKE_WORD_KEY = "stt_wake_word"
+STT_SENSITIVITY_KEY = "stt_sensitivity"
+STT_CUSTOM_PINYIN_KEY = "stt_custom_pinyin"
 
 # Gamification (v0.2.7+)
 UNLOCKED_PRESETS_KEY = "unlocked_presets"
@@ -250,6 +252,8 @@ class AppConfig:
     # Voice input (v0.4.0+)
     stt_enabled: bool = False
     stt_wake_word: str = "hey_jarvis"
+    stt_sensitivity: float = 0.5  # 0.0 (hardest) to 1.0 (easiest)
+    stt_custom_pinyin: str = ""  # Custom pinyin for sherpa-onnx (e.g. "n ǐ h ǎo")
 
 
 @dataclass
@@ -475,6 +479,8 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
             stt_wake_word = str(settings.value(STT_WAKE_WORD_KEY))
         else:
             stt_wake_word = "ni_hao_xiao_zhi" if language.startswith("zh") else "hey_jarvis"
+        stt_sensitivity = float(settings.value(STT_SENSITIVITY_KEY, 0.5))
+        stt_custom_pinyin = str(settings.value(STT_CUSTOM_PINYIN_KEY, ""))
 
         return AppConfig(
             theme_name=theme_name,
@@ -494,6 +500,8 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
             persona_prompts_json=persona_prompts_json,
             stt_enabled=stt_enabled,
             stt_wake_word=stt_wake_word,
+            stt_sensitivity=stt_sensitivity,
+            stt_custom_pinyin=stt_custom_pinyin,
         )
 
     return _open_settings_or_default(  # type: ignore[no-any-return]
@@ -595,6 +603,8 @@ def save_config(cfg: AppConfig, settings: QSettings | None = None) -> None:
         settings.setValue(PERSONA_PROMPTS_JSON_KEY, cfg.persona_prompts_json)
         settings.setValue(STT_ENABLED_KEY, cfg.stt_enabled)
         settings.setValue(STT_WAKE_WORD_KEY, cfg.stt_wake_word)
+        settings.setValue(STT_SENSITIVITY_KEY, cfg.stt_sensitivity)
+        settings.setValue(STT_CUSTOM_PINYIN_KEY, cfg.stt_custom_pinyin)
         settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)

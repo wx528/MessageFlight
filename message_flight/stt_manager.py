@@ -114,7 +114,11 @@ class STTManager(QObject):
 
         # Inject dependencies if provided, else create from config
         if self._listener is None and config.stt_enabled:
-            self._listener = create_listener(wake_word_key=config.stt_wake_word)
+            self._listener = create_listener(
+                wake_word_key=config.stt_wake_word,
+                sensitivity=config.stt_sensitivity,
+                custom_pinyin=config.stt_custom_pinyin,
+            )
         if self._stt is None:
             self._stt = MiniMaxSTTReader(api_key=config.minimax_subscription_key)
 

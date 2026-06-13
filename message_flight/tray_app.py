@@ -23,6 +23,7 @@ from message_flight.flight_widget import FlightWidget
 from message_flight.i18n import tr
 from message_flight.notification_worker import WINSOK_AVAILABLE, NotificationWorker
 from message_flight.agent import LLMAgent
+from message_flight.mcp_client import MCPClientManager
 from message_flight.persona_rewriter import PersonaRewriter
 from message_flight.plane_presets import get_preset, list_available_presets
 from message_flight.preset_editor import PresetEditorWindow
@@ -70,6 +71,15 @@ class TrayApplication:
         self._agent.tool_called.connect(self._on_agent_tool_called)
         self._agent.text_response.connect(self._on_agent_text_response)
         self._agent.error_occurred.connect(self._on_agent_error)
+        self._agent.mcp_tool_called.connect(self._on_agent_mcp_tool_called)
+
+        # MCP client manager for external tool servers
+        self._mcp_client = MCPClientManager()
+        self._mcp_client.tools_updated.connect(self._on_mcp_tools_updated)
+        self._mcp_client.tool_result.connect(self._on_mcp_tool_result)
+        self._mcp_client.tool_error.connect(self._on_mcp_tool_error)
+        if self._mcp_client.available and self.cfg.mcp_servers_json:
+            self._mcp_client.start(self.cfg.mcp_servers_json)
 
         # Gamification engine (Task 17)
         self._engine = AchievementEngine(self.state)
@@ -382,7 +392,46 @@ class TrayApplication:
         parts.append(f"dnd={self.action_dnd.isChecked()}")
         parts.append(f"preset={self.cfg.plane_preset_key}")
         parts.append(f"language={self.language}")
+        if self._mcp_client.connected_servers:
+            parts.append(f"mcp_servers={','.join(self._mcp_client.connected_servers)}")
         return ", ".join(parts)
+
+    # ------------------------------------------------------------------
+    # MCP handlers
+    # ------------------------------------------------------------------
+
+    def _on_mcp_tools_updated(self) -> None:
+        """MCP tools changed — update the agent's tool list."""
+        definitions = self._mcp_client.get_tool_definitions()
+        self._agent.set_mcp_tools(definitions)
+        logger.info("TrayApplication: MCP tools updated, %d tools available", len(definitions))
+
+    def _on_agent_mcp_tool_called(self, server_name: str, tool_name: str, params: dict) -> None:
+        """Agent requested an MCP tool call — forward to MCP client."""
+        logger.info("TrayApplication: MCP tool call %s/%s", server_name, tool_name)
+        self._toast_manager.show_toast(
+            title=tr("mcp.calling_tool", self.language).format(server=server_name, tool=tool_name),
+            description="",
+            icon="🔗",
+        )
+        self._mcp_client.call_tool(server_name, tool_name, params)
+
+    def _on_mcp_tool_result(self, server_name: str, tool_name: str, result_json: str) -> None:
+        """MCP tool returned a result — feed it back to the agent for a natural language response."""
+        logger.info("TrayApplication: MCP tool result from %s/%s", server_name, tool_name)
+        # Feed the result back to the LLM so it can formulate a natural response
+        self._agent.chat(
+            f"[System: MCP tool {server_name}/{tool_name} returned: {result_json[:500]}]"
+        )
+
+    def _on_mcp_tool_error(self, server_name: str, tool_name: str, error_msg: str) -> None:
+        """MCP tool call failed."""
+        logger.warning("TrayApplication: MCP tool error %s/%s: %s", server_name, tool_name, error_msg)
+        self._toast_manager.show_toast(
+            title=tr("mcp.tool_error", self.language).format(server=server_name, tool=tool_name),
+            description=error_msg[:100],
+            icon="⚠️",
+        )
 
     def _create_tray_icon(self, state: str = "idle") -> QIcon:
         """Build a tray icon for the given voice state.
@@ -643,6 +692,12 @@ class TrayApplication:
             # Update LLM agent config
             self._agent.set_api_key(new_cfg.minimax_subscription_key)
             self._agent.enabled = new_cfg.agent_enabled
+
+            # Update MCP client if config changed
+            if new_cfg.mcp_servers_json != self.cfg.mcp_servers_json:
+                self._mcp_client.stop()
+                if self._mcp_client.available and new_cfg.mcp_servers_json:
+                    self._mcp_client.start(new_cfg.mcp_servers_json)
 
             # Voice input: construct on enable, tear down on disable.
             # Without this, enabling voice in settings required an app

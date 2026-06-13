@@ -71,6 +71,7 @@ STT_WAKE_WORD_KEY = "stt_wake_word"
 STT_SENSITIVITY_KEY = "stt_sensitivity"
 STT_CUSTOM_PINYIN_KEY = "stt_custom_pinyin"
 AGENT_ENABLED_KEY = "agent_enabled"
+MCP_SERVERS_JSON_KEY = "mcp_servers_json"
 
 # Gamification (v0.2.7+)
 UNLOCKED_PRESETS_KEY = "unlocked_presets"
@@ -256,6 +257,7 @@ class AppConfig:
     stt_sensitivity: float = 0.5  # 0.0 (hardest) to 1.0 (easiest)
     stt_custom_pinyin: str = ""  # Custom pinyin for sherpa-onnx (e.g. "n ǐ h ǎo")
     agent_enabled: bool = True  # LLM agent for free-form voice commands
+    mcp_servers_json: str = ""  # JSON config for MCP servers
 
 
 @dataclass
@@ -484,6 +486,7 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
         stt_sensitivity = float(settings.value(STT_SENSITIVITY_KEY, 0.5))
         stt_custom_pinyin = str(settings.value(STT_CUSTOM_PINYIN_KEY, ""))
         agent_enabled = bool(settings.value(AGENT_ENABLED_KEY, True))
+        mcp_servers_json = str(settings.value(MCP_SERVERS_JSON_KEY, ""))
 
         return AppConfig(
             theme_name=theme_name,
@@ -506,6 +509,7 @@ def load_config(settings: QSettings | None = None) -> AppConfig:
             stt_sensitivity=stt_sensitivity,
             stt_custom_pinyin=stt_custom_pinyin,
             agent_enabled=agent_enabled,
+            mcp_servers_json=mcp_servers_json,
         )
 
     return _open_settings_or_default(  # type: ignore[no-any-return]
@@ -610,6 +614,7 @@ def save_config(cfg: AppConfig, settings: QSettings | None = None) -> None:
         settings.setValue(STT_SENSITIVITY_KEY, cfg.stt_sensitivity)
         settings.setValue(STT_CUSTOM_PINYIN_KEY, cfg.stt_custom_pinyin)
         settings.setValue(AGENT_ENABLED_KEY, cfg.agent_enabled)
+        settings.setValue(MCP_SERVERS_JSON_KEY, cfg.mcp_servers_json)
         settings.sync()
     except Exception as e:
         print(f"save_config: failed to persist ({e!r})", file=sys.stderr)

@@ -141,6 +141,7 @@ class LLMAgent(QObject):
     """
 
     tool_called = pyqtSignal(str, dict)
+    mcp_tool_called = pyqtSignal(str, str, dict)  # server_name, tool_name, params
     text_response = pyqtSignal(str)
     error_occurred = pyqtSignal(str)
 
@@ -161,6 +162,7 @@ class LLMAgent(QObject):
         self._pending: dict[int, list[dict]] = {}  # id(reply) -> messages sent
         self._history: list[dict[str, str]] = []
         self._status_info: str = ""  # Updated by the app
+        self._mcp_tool_definitions: list[dict[str, Any]] = []  # From MCP servers
 
     @property
     def enabled(self) -> bool:
@@ -176,6 +178,11 @@ class LLMAgent(QObject):
     def set_status_info(self, info: str) -> None:
         """Update the current app status string (injected into system prompt)."""
         self._status_info = info
+
+    def set_mcp_tools(self, definitions: list[dict[str, Any]]) -> None:
+        """Update the MCP tool definitions (called when tools are discovered)."""
+        self._mcp_tool_definitions = definitions
+        logger.info("LLMAgent: updated MCP tools, now %d MCP tools available", len(definitions))
 
     def clear_history(self) -> None:
         self._history.clear()
@@ -210,7 +217,7 @@ class LLMAgent(QObject):
         payload: dict[str, Any] = {
             "model": self._MODEL,
             "messages": messages,
-            "tools": TOOL_DEFINITIONS,
+            "tools": TOOL_DEFINITIONS + self._mcp_tool_definitions,
             "tool_choice": "auto",
         }
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -284,11 +291,20 @@ class LLMAgent(QObject):
 
                 action = TOOL_ACTION_MAP.get(tool_name)
                 if action:
-                    logger.info("LLMAgent: tool call %s(%s)", tool_name, tool_params)
-                    # For get_status, inject the status info into params
+                    # Built-in tool
+                    logger.info("LLMAgent: built-in tool call %s(%s)", tool_name, tool_params)
                     if action == "get_status":
                         tool_params["_status"] = self._status_info
                     self.tool_called.emit(action, tool_params)
+                elif tool_name.startswith("mcp__"):
+                    # MCP tool — parse server and tool name
+                    parts = tool_name.split("__", 2)
+                    if len(parts) == 3:
+                        server_name, mcp_tool = parts[1], parts[2]
+                        logger.info("LLMAgent: MCP tool call %s/%s(%s)", server_name, mcp_tool, tool_params)
+                        self.mcp_tool_called.emit(server_name, mcp_tool, tool_params)
+                    else:
+                        logger.warning("LLMAgent: invalid MCP tool name %s", tool_name)
                 else:
                     logger.warning("LLMAgent: unknown tool %s", tool_name)
 

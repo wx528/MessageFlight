@@ -130,6 +130,11 @@ _TRANSLATIONS = {
         "voice.agent_chat": "智能助手",
         "agent.enabled": "启用智能助手",
         "agent.enabled_hint": "开启后，语音识别无法匹配固定命令时将交给大模型理解",
+        "mcp.servers": "MCP 服务器",
+        "mcp.servers_placeholder": '{{"obsidian":{{"command":"npx","args":["-y","@huangyihe/obsidian-mcp"],"env":{{"OBSIDIAN_VAULT_PATH":"/path/to/vault"}}}}}}',
+        "mcp.servers_hint": "JSON 格式配置 MCP 服务器，需先安装 mcp 包 (pip install mcp)",
+        "mcp.calling_tool": "正在调用 {server}/{tool}...",
+        "mcp.tool_error": "{server}/{tool} 调用失败",
     },
     "en": {
         "tray.show": "Show plane",
@@ -244,6 +249,11 @@ _TRANSLATIONS = {
         "voice.agent_chat": "AI Assistant",
         "agent.enabled": "Enable AI assistant",
         "agent.enabled_hint": "When enabled, unrecognized speech is forwarded to the LLM for interpretation",
+        "mcp.servers": "MCP Servers",
+        "mcp.servers_placeholder": '{{"obsidian":{{"command":"npx","args":["-y","@huangyihe/obsidian-mcp"],"env":{{"OBSIDIAN_VAULT_PATH":"/path/to/vault"}}}}}}',
+        "mcp.servers_hint": "JSON config for MCP servers (requires pip install mcp)",
+        "mcp.calling_tool": "Calling {server}/{tool}...",
+        "mcp.tool_error": "{server}/{tool} call failed",
     },
     "ja": {
         "tray.show": "飛行機を表示",

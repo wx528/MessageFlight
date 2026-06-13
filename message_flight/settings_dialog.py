@@ -276,10 +276,19 @@ class SettingsDialog(QDialog):
         self._agent_enabled_check.setChecked(initial.agent_enabled)
         form.addRow(tr("agent.enabled", self._language), self._agent_enabled_check)
 
+        # MCP servers JSON config
+        self._mcp_servers_edit = QLineEdit()
+        self._mcp_servers_edit.setPlaceholderText(
+            tr("mcp.servers_placeholder", self._language)
+        )
+        self._mcp_servers_edit.setText(initial.mcp_servers_json)
+        form.addRow(tr("mcp.servers", self._language), self._mcp_servers_edit)
+
         voice_layout.addLayout(form)
         voice_layout.addWidget(QLabel(tr("voice.sensitivity_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.custom_pinyin_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("agent.enabled_hint", self._language)))
+        voice_layout.addWidget(QLabel(tr("mcp.servers_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.wake_word_hint", self._language)))
         voice_layout.addWidget(QLabel(tr("voice.disabled_hint", self._language)))
 
@@ -326,6 +335,7 @@ class SettingsDialog(QDialog):
         result.stt_sensitivity = self._sensitivity_slider.value() / 100.0
         result.stt_custom_pinyin = self._custom_pinyin_edit.text().strip()
         result.agent_enabled = self._agent_enabled_check.isChecked()
+        result.mcp_servers_json = self._mcp_servers_edit.text().strip()
         return result
 
     # ------------------------------------------------------------------

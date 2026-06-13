@@ -34,6 +34,22 @@ def _isolated_tray_state(monkeypatch):
         "message_flight.tray_app.load_gamification_state",
         lambda: state,
     )
+    # AchievementEngine.check_time_based() fires ``unlocked`` synchronously
+    # for any time-of-day achievement whose window covers the current
+    # local hour (night_owl 0-4h, early_bird 5-6h). The slot
+    # _on_achievement_unlocked then writes to QSettings and pops a real
+    # Toast widget — both of which hang on a headless test box. Stub
+    # them so the constructor returns promptly regardless of wall-clock
+    # time. Tests that need to inspect toast calls replace
+    # ``app._toast_manager`` themselves.
+    monkeypatch.setattr(
+        "message_flight.tray_app.ToastManager",
+        MagicMock,
+    )
+    monkeypatch.setattr(
+        "message_flight.tray_app.save_gamification_state",
+        lambda *a, **kw: None,
+    )
 
 
 def test_tray_app_starts_hidden_in_tray():
@@ -480,7 +496,6 @@ def test_tray_app_connects_banner_clicked_signal():
 def test_tray_app_creates_achievement_engine():
     """TrayApplication must construct an AchievementEngine and ToastManager."""
     from message_flight.achievement_engine import AchievementEngine
-    from message_flight.toast import ToastManager
     from message_flight.tray_app import TrayApplication
 
     with patch("message_flight.tray_app.QApplication"), \
@@ -490,11 +505,19 @@ def test_tray_app_creates_achievement_engine():
          patch("message_flight.tray_app.QAction"), \
          patch("message_flight.tray_app.WINSOK_AVAILABLE", False), \
          patch("message_flight.tray_app.TrayApplication._create_tray_icon", return_value=MagicMock()), \
-         patch("message_flight.tray_app.TTSManager"):
+         patch("message_flight.tray_app.TTSManager"), \
+         patch("message_flight.tray_app.ToastManager") as mock_toast_cls:
         app = TrayApplication()
+        # The autouse fixture stubs ToastManager to a no-op MagicMock to
+        # avoid a real Toast widget popping up if a time-based achievement
+        # fires during the constructor. Here we instead verify the
+        # constructor's call site by inspecting the patched factory.
+        mock_toast_cls.assert_called_once()
 
     assert isinstance(app._engine, AchievementEngine)
-    assert isinstance(app._toast_manager, ToastManager)
+    # _toast_manager is a MagicMock (from the factory we patched) so we
+    # can't isinstance-check it against ToastManager anymore. The factory
+    # call above is the real assertion.
 
 
 def test_achievement_unlocked_adds_preset_and_shows_toast():

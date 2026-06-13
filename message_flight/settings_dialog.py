@@ -232,7 +232,7 @@ class SettingsDialog(QDialog):
         self._voice_enabled_checkbox = QCheckBox(tr("voice.enable", self._language))
         self._voice_enabled_checkbox.setChecked(initial.stt_enabled)
         self._voice_wake_word_combo = QComboBox()
-        for wake_word_key in ("hey_jarvis", "alexa", "hey_mycroft"):
+        for wake_word_key in ("hey_jarvis", "alexa", "hey_mycroft", "ni_hao_xiao_zhi", "ni_hao_xiao_fei", "xiao_fei_xiao_fei"):
             self._voice_wake_word_combo.addItem(
                 tr(f"voice.wake_word.{wake_word_key}", self._language),
                 wake_word_key,
